@@ -1,10 +1,11 @@
 import { AuthProvider, useAuth } from '@/context/AuthContext';
-import { useHashRoute, navigate, homePathForRole } from '@/router/Router';
+import { useHashRoute, navigate, afterAuthPath } from '@/router/Router';
 import { LandingPage } from '@/pages/LandingPage';
 import { LoginPage } from '@/pages/LoginPage';
 import { RegisterPage } from '@/pages/RegisterPage';
 import { DashboardPage } from '@/pages/DashboardPage';
 import { PortalPage } from '@/pages/PortalPage';
+import { BookAppointmentPage } from '@/pages/BookAppointmentPage';
 
 function AppRoutes() {
   const { route } = useHashRoute();
@@ -21,13 +22,17 @@ function AppRoutes() {
     );
   }
 
+  if (root === 'book') {
+    return <BookAppointmentPage />;
+  }
+
   if (root === 'login') {
-    if (user) { navigate(homePathForRole(user.role)); return null; }
+    if (user) { navigate(afterAuthPath(user.role)); return null; }
     return <LoginPage />;
   }
 
   if (root === 'register') {
-    if (user) { navigate(homePathForRole(user.role)); return null; }
+    if (user) { navigate(afterAuthPath(user.role)); return null; }
     return <RegisterPage />;
   }
 

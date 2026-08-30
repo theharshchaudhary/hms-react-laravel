@@ -233,8 +233,19 @@ export interface HospitalStats {
   emergencyResponse: number;
 }
 
+export interface DoctorSlots {
+  date: string;
+  doctorId: string;
+  doctorName: string;
+  onLeave: boolean;
+  available: string[];
+  booked: string[];
+}
+
 export const publicApi = {
   doctors: () => request<Doctor[]>('/public/doctors'),
+  doctorSlots: (doctorId: string, date: string) =>
+    request<DoctorSlots>(`/public/doctors/${doctorId}/slots?date=${date}`),
   departments: () => request<Department[]>('/public/departments'),
   testimonials: () => request<Testimonial[]>('/public/testimonials'),
   facilities: () => request<Facility[]>('/public/facilities'),

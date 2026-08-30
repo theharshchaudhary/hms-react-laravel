@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { HeartPulse, Mail, Lock, User, Phone, Eye, EyeOff, ArrowLeft, AlertCircle, Loader2, CheckCircle2 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
-import { navigate, homePathForRole } from '@/router/Router';
+import { navigate, afterAuthPath } from '@/router/Router';
+import { peekBookingHandoff } from '@/lib/handoff';
 
 export function RegisterPage() {
   const { register, loading, error, clearError } = useAuth();
@@ -35,13 +36,14 @@ export function RegisterPage() {
         gender: gender || undefined,
         age: age ? parseInt(age) : undefined,
       });
-      navigate(homePathForRole('patient'));
+      navigate(afterAuthPath('patient'));
     } catch {
       /* error handled by context */
     }
   };
 
   const displayError = localError || error;
+  const booking = peekBookingHandoff();
 
   return (
     <div className="flex min-h-screen">
@@ -93,9 +95,16 @@ export function RegisterPage() {
             Register as a patient to book appointments and access your health records.
           </p>
 
-          <div className="mt-4 rounded-lg border border-primary-100 bg-primary-50 px-4 py-3 text-xs text-primary-700">
-            Staff accounts (doctors, receptionists, administrators) are created by the hospital administrator, not here.
-          </div>
+          {booking?.doctorName ? (
+            <div className="mt-4 rounded-lg border border-primary-200 bg-primary-50 px-4 py-3 text-sm text-primary-800">
+              After you register we'll take you straight back to confirm your appointment with <span className="font-semibold">{booking.doctorName}</span>
+              {booking.date && booking.time ? <> on {new Date(booking.date).toLocaleDateString('en-US', { month: 'long', day: 'numeric' })} at {booking.time}</> : null}.
+            </div>
+          ) : (
+            <div className="mt-4 rounded-lg border border-primary-100 bg-primary-50 px-4 py-3 text-xs text-primary-700">
+              Staff accounts (doctors, receptionists, administrators) are created by the hospital administrator, not here.
+            </div>
+          )}
 
           {displayError && (
             <div className="mt-6 flex items-center gap-3 rounded-lg border border-error-200 bg-error-50 px-4 py-3 text-sm text-error-700 animate-fade-in">

@@ -10,6 +10,7 @@ import { Footer } from '@/components/landing/Footer';
 import { Avatar } from '@/components/ui/Avatar';
 import { mockDoctors, mockDepartments, mockTestimonials, mockFacilities, hospitalStats } from '@/data/mockData';
 import { publicApi, contactApi, type HospitalStats } from '@/services/api';
+import { setBookingHandoff } from '@/lib/handoff';
 import type { Doctor, Department, Testimonial, Facility } from '@/types';
 import { navigate } from '@/router/Router';
 
@@ -79,7 +80,7 @@ export function LandingPage() {
                 Experience world-class healthcare with compassionate doctors, advanced technology, and a patient-first approach that puts your wellbeing at the heart of everything we do.
               </p>
               <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-                <button onClick={() => navigate('/register')} className="btn-primary text-base">
+                <button onClick={() => navigate('/book')} className="btn-primary text-base">
                   <Calendar className="h-5 w-5" />
                   Book Appointment
                 </button>
@@ -351,6 +352,18 @@ export function LandingPage() {
                     {doctor.availability}
                   </span>
                 </div>
+                {doctor.availability !== 'On Leave' && (
+                  <button
+                    onClick={() => {
+                      setBookingHandoff({ doctorId: doctor.id, doctorName: doctor.name, specialization: doctor.specialization, department: doctor.department });
+                      navigate('/book');
+                    }}
+                    className="btn-secondary mt-4 w-full text-sm"
+                  >
+                    <Calendar className="h-4 w-4" />
+                    Book Appointment
+                  </button>
+                )}
               </div>
             ))}
           </div>

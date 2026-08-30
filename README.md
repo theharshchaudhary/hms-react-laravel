@@ -51,6 +51,10 @@ created exclusively by a super admin via the dashboard's *User Management* page.
   database (revenue trends, appointment status, weekly load, bed occupancy).
 - **Public site** — landing page pulls live doctors, departments, testimonials,
   facilities and hospital stats; contact form persists messages.
+- **Guided booking** (`/#/book`) — pick a doctor → choose a real open time slot →
+  sign in / register (booking intent preserved through the auth hop) → confirm →
+  done. Logged-in patients skip the auth step; landing-page "Book" buttons and each
+  doctor card deep-link into it.
 - **Production concerns** — request validation, API Resources, CORS allow-list,
   rate limiting, invoice PDFs (dompdf), seeders with realistic demo data,
   `.env.example` for both apps.
@@ -130,6 +134,7 @@ Base URL: `http://localhost:8001/api`
 | POST | `/auth/login` | → `{ token, user }` |
 | POST | `/contact` | landing-page contact form |
 | GET | `/public/{doctors,departments,testimonials,facilities,stats}` | landing page data |
+| GET | `/public/doctors/{id}/slots?date=YYYY-MM-DD` | open time slots for the booking wizard |
 
 ### Shared (any authenticated user)
 `POST /auth/logout` · `GET /auth/user` · `PUT /auth/profile` · `PUT /auth/password`

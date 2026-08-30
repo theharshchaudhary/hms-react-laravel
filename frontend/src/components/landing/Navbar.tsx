@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { HeartPulse, Menu, X, LogIn } from 'lucide-react';
+import { HeartPulse, Menu, X, Calendar } from 'lucide-react';
 import { navigate } from '@/router/Router';
 
 export function Navbar() {
@@ -55,9 +55,9 @@ export function Navbar() {
 
         <div className="hidden items-center gap-3 lg:flex">
           <button onClick={() => navigate('/login')} className="btn-ghost">Sign In</button>
-          <button onClick={() => navigate('/register')} className="btn-primary">
-            <LogIn className="h-4 w-4" />
-            Get Started
+          <button onClick={() => navigate('/book')} className="btn-primary">
+            <Calendar className="h-4 w-4" />
+            Book Appointment
           </button>
         </div>
 
@@ -83,7 +83,7 @@ export function Navbar() {
             ))}
             <div className="mt-2 flex gap-2 border-t border-gray-100 pt-3">
               <button onClick={() => navigate('/login')} className="btn-secondary flex-1">Sign In</button>
-              <button onClick={() => navigate('/register')} className="btn-primary flex-1">Get Started</button>
+              <button onClick={() => navigate('/book')} className="btn-primary flex-1">Book Appointment</button>
             </div>
           </div>
         </div>

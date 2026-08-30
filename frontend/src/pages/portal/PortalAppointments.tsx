@@ -6,23 +6,20 @@ import { SectionLoader, ErrorState } from '@/components/ui/SectionLoader';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { AppointmentStatusBadge } from '@/components/ui/StatusBadge';
 import { Badge } from '@/components/ui/Badge';
-import { portalApi, publicApi, ApiError, type BookAppointmentInput } from '@/services/api';
-import type { Appointment, Doctor } from '@/types';
+import { navigate } from '@/router/Router';
+import { portalApi, ApiError } from '@/services/api';
+import type { Appointment } from '@/types';
 
-const TYPES = ['Consultation', 'Follow-up', 'Check-up'];
 const CHANGEABLE = ['Scheduled', 'Confirmed'];
-
-const emptyForm: BookAppointmentInput = { doctorId: '', date: new Date().toISOString().split('T')[0], time: '09:00', type: 'Consultation', reason: '' };
+const todayStr = () => new Date().toISOString().split('T')[0];
 
 export function PortalAppointments() {
   const [appointments, setAppointments] = useState<Appointment[]>([]);
-  const [doctors, setDoctors] = useState<Doctor[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
 
-  const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<Appointment | null>(null);
-  const [form, setForm] = useState<BookAppointmentInput>(emptyForm);
+  const [form, setForm] = useState({ date: todayStr(), time: '09:00', reason: '' });
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const [cancelTarget, setCancelTarget] = useState<Appointment | null>(null);
@@ -30,36 +27,27 @@ export function PortalAppointments() {
   const load = useCallback(() => {
     setLoading(true);
     setError(false);
-    Promise.all([portalApi.appointments(), publicApi.doctors()])
-      .then(([a, d]) => { setAppointments(a); setDoctors(d); })
-      .catch(() => setError(true))
-      .finally(() => setLoading(false));
+    portalApi.appointments().then(setAppointments).catch(() => setError(true)).finally(() => setLoading(false));
   }, []);
   useEffect(() => { load(); }, [load]);
 
-  const openBook = () => { setEditing(null); setForm(emptyForm); setFormError(null); setModalOpen(true); };
   const openReschedule = (a: Appointment) => {
     setEditing(a);
-    setForm({ doctorId: a.doctorId, date: a.date, time: a.time, type: a.type, reason: a.reason });
+    setForm({ date: a.date, time: a.time, reason: a.reason });
     setFormError(null);
-    setModalOpen(true);
   };
 
-  const submit = async () => {
+  const submitReschedule = async () => {
+    if (!editing) return;
     setSaving(true);
     setFormError(null);
     try {
-      if (editing) {
-        await portalApi.rescheduleAppointment(editing.id, { date: form.date, time: form.time, reason: form.reason });
-      } else {
-        await portalApi.bookAppointment(form);
-      }
-      setModalOpen(false);
+      await portalApi.rescheduleAppointment(editing.id, form);
+      setEditing(null);
       load();
     } catch (err) {
-      const msg = err instanceof ApiError && err.errors ? Object.values(err.errors).flat()[0]
-        : err instanceof Error ? err.message : 'Something went wrong';
-      setFormError(msg);
+      setFormError(err instanceof ApiError && err.errors ? Object.values(err.errors).flat()[0]
+        : err instanceof Error ? err.message : 'Something went wrong');
     } finally {
       setSaving(false);
     }
@@ -78,12 +66,12 @@ export function PortalAppointments() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <p className="text-sm text-gray-500">{appointments.length} appointment{appointments.length !== 1 ? 's' : ''}</p>
-        <button className="btn-primary" onClick={openBook}><Plus className="h-4 w-4" />Book Appointment</button>
+        <button className="btn-primary" onClick={() => navigate('/book')}><Plus className="h-4 w-4" />Book Appointment</button>
       </div>
 
       {appointments.length === 0 ? (
         <EmptyState icon={CalendarDays} title="No appointments yet" message="Book an appointment with one of our specialists."
-          action={<button className="btn-primary" onClick={openBook}><Plus className="h-4 w-4" />Book Appointment</button>} />
+          action={<button className="btn-primary" onClick={() => navigate('/book')}><Plus className="h-4 w-4" />Book Appointment</button>} />
       ) : (
         <div className="grid gap-4 sm:grid-cols-2">
           {appointments.map((a) => (
@@ -115,44 +103,24 @@ export function PortalAppointments() {
         </div>
       )}
 
-      <Modal open={modalOpen} onClose={() => setModalOpen(false)} title={editing ? 'Reschedule Appointment' : 'Book an Appointment'}
-        description={editing ? `With ${editing.doctorName}` : 'Choose a doctor and preferred time'} size="lg"
+      <Modal open={!!editing} onClose={() => setEditing(null)} title="Reschedule Appointment"
+        description={editing ? `With ${editing.doctorName}` : ''} size="md"
         footer={<>
-          <button className="btn-secondary" onClick={() => setModalOpen(false)}>Cancel</button>
-          <button className="btn-primary" onClick={submit} disabled={saving}>
-            {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : null}{editing ? 'Save' : 'Request Appointment'}
-          </button>
+          <button className="btn-secondary" onClick={() => setEditing(null)}>Cancel</button>
+          <button className="btn-primary" onClick={submitReschedule} disabled={saving}>{saving ? <Loader2 className="h-4 w-4 animate-spin" /> : null}Save</button>
         </>}>
         <div className="grid gap-4 sm:grid-cols-2">
-          <div className="sm:col-span-2">
-            <label className="mb-1.5 block text-sm font-medium text-gray-700">Doctor</label>
-            <select className="input-field" value={form.doctorId} disabled={!!editing}
-              onChange={(e) => setForm({ ...form, doctorId: e.target.value })}>
-              <option value="">Select a doctor</option>
-              {doctors.map((d) => <option key={d.id} value={d.id}>{d.name} — {d.specialization} ({d.department})</option>)}
-            </select>
-          </div>
           <div>
             <label className="mb-1.5 block text-sm font-medium text-gray-700">Date</label>
-            <input type="date" className="input-field" value={form.date} min={new Date().toISOString().split('T')[0]}
-              onChange={(e) => setForm({ ...form, date: e.target.value })} />
+            <input type="date" className="input-field" value={form.date} min={todayStr()} onChange={(e) => setForm({ ...form, date: e.target.value })} />
           </div>
           <div>
             <label className="mb-1.5 block text-sm font-medium text-gray-700">Time</label>
             <input type="time" className="input-field" value={form.time} onChange={(e) => setForm({ ...form, time: e.target.value })} />
           </div>
-          {!editing && (
-            <div>
-              <label className="mb-1.5 block text-sm font-medium text-gray-700">Type</label>
-              <select className="input-field" value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value })}>
-                {TYPES.map((t) => <option key={t}>{t}</option>)}
-              </select>
-            </div>
-          )}
           <div className="sm:col-span-2">
             <label className="mb-1.5 block text-sm font-medium text-gray-700">Reason for visit</label>
-            <textarea className="input-field resize-none" rows={3} value={form.reason}
-              onChange={(e) => setForm({ ...form, reason: e.target.value })} placeholder="Briefly describe your symptoms or reason" />
+            <textarea className="input-field resize-none" rows={3} value={form.reason} onChange={(e) => setForm({ ...form, reason: e.target.value })} />
           </div>
         </div>
         {formError && (
@@ -160,7 +128,7 @@ export function PortalAppointments() {
             <AlertCircle className="h-4 w-4" />{formError}
           </div>
         )}
-        <p className="mt-4 text-xs text-gray-400">Appointment requests are confirmed by our front desk. You'll see the status update here.</p>
+        <p className="mt-4 text-xs text-gray-400">A rescheduled appointment goes back to "Scheduled" for the front desk to re-confirm.</p>
       </Modal>
 
       <ConfirmDialog open={!!cancelTarget} onClose={() => setCancelTarget(null)} onConfirm={doCancel}

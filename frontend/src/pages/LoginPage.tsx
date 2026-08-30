@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { HeartPulse, Mail, Lock, Eye, EyeOff, ArrowLeft, AlertCircle, Loader2 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
-import { navigate, homePathForRole } from '@/router/Router';
+import { navigate, afterAuthPath } from '@/router/Router';
+import { peekBookingHandoff } from '@/lib/handoff';
 
 const DEMO_ACCOUNTS = [
   { key: 'patient', label: 'Patient', email: 'patient@medicore.com', password: 'patient123' },
@@ -23,7 +24,7 @@ export function LoginPage() {
     e.preventDefault();
     try {
       const me = await login(email, password);
-      navigate(homePathForRole(me.role));
+      navigate(afterAuthPath(me.role));
     } catch {
       /* error handled by context */
     }
@@ -85,6 +86,12 @@ export function LoginPage() {
 
           <h1 className="font-display text-3xl font-bold text-gray-900">Sign in to your account</h1>
           <p className="mt-2 text-sm text-gray-500">Enter your credentials to access the dashboard.</p>
+
+          {peekBookingHandoff()?.doctorName && (
+            <div className="mt-4 rounded-lg border border-primary-200 bg-primary-50 px-4 py-3 text-sm text-primary-800">
+              Sign in to confirm your appointment with <span className="font-semibold">{peekBookingHandoff()!.doctorName}</span>.
+            </div>
+          )}
 
           {error && (
             <div className="mt-6 flex items-center gap-3 rounded-lg border border-error-200 bg-error-50 px-4 py-3 text-sm text-error-700 animate-fade-in">

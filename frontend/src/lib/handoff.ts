@@ -31,6 +31,33 @@ export function takePatientSearch(): string | null {
   return v;
 }
 
+/**
+ * A booking-in-progress from the public /book flow. Persisted to sessionStorage
+ * so it survives the sign-in / register hop, then resumed on /book.
+ */
+export interface BookingHandoff {
+  doctorId?: string;
+  doctorName?: string;
+  specialization?: string;
+  department?: string;
+  date?: string;
+  time?: string;
+  type?: string;
+  reason?: string;
+}
+
+const BOOKING_KEY = 'medicore_booking_intent';
+
+export function setBookingHandoff(data: BookingHandoff): void {
+  try { sessionStorage.setItem(BOOKING_KEY, JSON.stringify(data)); } catch { /* ignore */ }
+}
+export function peekBookingHandoff(): BookingHandoff | null {
+  try { const s = sessionStorage.getItem(BOOKING_KEY); return s ? (JSON.parse(s) as BookingHandoff) : null; } catch { return null; }
+}
+export function clearBookingHandoff(): void {
+  try { sessionStorage.removeItem(BOOKING_KEY); } catch { /* ignore */ }
+}
+
 // Rough default price per appointment type, used to seed the first line item.
 export const CONSULT_PRICES: Record<string, number> = {
   Consultation: 150,

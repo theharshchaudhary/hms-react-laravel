@@ -31,6 +31,7 @@ Route::middleware('throttle:20,1')->group(function () {
 
 Route::prefix('public')->group(function () {
     Route::get('doctors', [PublicController::class, 'doctors']);
+    Route::get('doctors/{doctor}/slots', [PublicController::class, 'slots']);
     Route::get('departments', [PublicController::class, 'departments']);
     Route::get('testimonials', [PublicController::class, 'testimonials']);
     Route::get('facilities', [PublicController::class, 'facilities']);
