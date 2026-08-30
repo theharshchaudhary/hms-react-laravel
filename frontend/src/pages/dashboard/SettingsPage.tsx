@@ -1,13 +1,13 @@
 import { useState } from 'react';
-import { User, Bell, Shield, Globe, Palette, Save, Building2 } from 'lucide-react';
+import { User, Bell, Shield, Palette, Save, Loader2, AlertCircle } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { Avatar } from '@/components/ui/Avatar';
 import { Badge } from '@/components/ui/Badge';
+import { authApi, ApiError } from '@/services/api';
 
 export function SettingsPage() {
-  const { user } = useAuth();
+  const { user, setUser } = useAuth();
   const [activeTab, setActiveTab] = useState('profile');
-  const [saved, setSaved] = useState(false);
 
   const tabs = [
     { key: 'profile', label: 'Profile', icon: User },
@@ -16,9 +16,48 @@ export function SettingsPage() {
     { key: 'preferences', label: 'Preferences', icon: Palette },
   ];
 
-  const handleSave = () => {
-    setSaved(true);
-    setTimeout(() => setSaved(false), 3000);
+  // --- Profile ---
+  const [profile, setProfile] = useState({
+    name: user?.name || '',
+    email: user?.email || '',
+    phone: user?.phone || '',
+    department: user?.department || '',
+  });
+  const [profileState, setProfileState] = useState<{ saving: boolean; ok: boolean; error: string | null }>({ saving: false, ok: false, error: null });
+
+  const saveProfile = async () => {
+    setProfileState({ saving: true, ok: false, error: null });
+    try {
+      const updated = await authApi.updateProfile(profile);
+      setUser(updated);
+      setProfileState({ saving: false, ok: true, error: null });
+      setTimeout(() => setProfileState((s) => ({ ...s, ok: false })), 3000);
+    } catch (err) {
+      setProfileState({ saving: false, ok: false, error: err instanceof Error ? err.message : 'Failed to save' });
+    }
+  };
+
+  // --- Security ---
+  const [pw, setPw] = useState({ current_password: '', password: '', confirm: '' });
+  const [pwState, setPwState] = useState<{ saving: boolean; ok: boolean; error: string | null }>({ saving: false, ok: false, error: null });
+
+  const savePassword = async () => {
+    if (pw.password !== pw.confirm) {
+      setPwState({ saving: false, ok: false, error: 'New passwords do not match' });
+      return;
+    }
+    setPwState({ saving: true, ok: false, error: null });
+    try {
+      await authApi.updatePassword(pw.current_password, pw.password);
+      setPw({ current_password: '', password: '', confirm: '' });
+      setPwState({ saving: false, ok: true, error: null });
+      setTimeout(() => setPwState((s) => ({ ...s, ok: false })), 3000);
+    } catch (err) {
+      const msg = err instanceof ApiError && err.errors
+        ? Object.values(err.errors).flat()[0]
+        : err instanceof Error ? err.message : 'Failed to update password';
+      setPwState({ saving: false, ok: false, error: msg });
+    }
   };
 
   return (
@@ -54,18 +93,23 @@ export function SettingsPage() {
             </div>
           </div>
           <div className="mt-6 grid gap-4 sm:grid-cols-2">
-            <Field label="Full Name" defaultValue={user?.name} />
-            <Field label="Email" defaultValue={user?.email} />
-            <Field label="Phone" defaultValue={user?.phone} />
-            <Field label="Department" defaultValue={user?.department} />
+            <Field label="Full Name"><input className="input-field" value={profile.name} onChange={(e) => setProfile({ ...profile, name: e.target.value })} /></Field>
+            <Field label="Email"><input className="input-field" type="email" value={profile.email} onChange={(e) => setProfile({ ...profile, email: e.target.value })} /></Field>
+            <Field label="Phone"><input className="input-field" value={profile.phone} onChange={(e) => setProfile({ ...profile, phone: e.target.value })} /></Field>
+            <Field label="Department"><input className="input-field" value={profile.department} onChange={(e) => setProfile({ ...profile, department: e.target.value })} /></Field>
             <div>
               <label className="mb-1.5 block text-sm font-medium text-gray-700">Role</label>
               <div className="flex items-center gap-2"><Badge variant="primary" className="capitalize">{user?.role}</Badge></div>
             </div>
           </div>
+          {profileState.error && (
+            <div className="mt-4 flex items-center gap-2 rounded-lg border border-error-200 bg-error-50 px-4 py-2.5 text-sm text-error-700"><AlertCircle className="h-4 w-4" />{profileState.error}</div>
+          )}
           <div className="mt-6 flex items-center gap-3">
-            <button className="btn-primary" onClick={handleSave}><Save className="h-4 w-4" />Save Changes</button>
-            {saved && <span className="text-sm text-success-600 animate-fade-in">Saved successfully!</span>}
+            <button className="btn-primary" onClick={saveProfile} disabled={profileState.saving}>
+              {profileState.saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}Save Changes
+            </button>
+            {profileState.ok && <span className="text-sm text-success-600 animate-fade-in">Saved successfully!</span>}
           </div>
         </div>
       )}
@@ -92,30 +136,27 @@ export function SettingsPage() {
               </div>
             ))}
           </div>
-          <div className="mt-6"><button className="btn-primary" onClick={handleSave}><Save className="h-4 w-4" />Save Preferences</button></div>
         </div>
       )}
 
       {activeTab === 'security' && (
         <div className="card p-6">
           <h3 className="text-base font-semibold text-gray-900">Security Settings</h3>
-          <p className="text-sm text-gray-500">Manage your password and security options</p>
+          <p className="text-sm text-gray-500">Manage your password</p>
           <div className="mt-6 space-y-4">
-            <Field label="Current Password" type="password" />
-            <Field label="New Password" type="password" />
-            <Field label="Confirm New Password" type="password" />
+            <Field label="Current Password"><input className="input-field" type="password" value={pw.current_password} onChange={(e) => setPw({ ...pw, current_password: e.target.value })} /></Field>
+            <Field label="New Password"><input className="input-field" type="password" value={pw.password} onChange={(e) => setPw({ ...pw, password: e.target.value })} /></Field>
+            <Field label="Confirm New Password"><input className="input-field" type="password" value={pw.confirm} onChange={(e) => setPw({ ...pw, confirm: e.target.value })} /></Field>
           </div>
-          <div className="mt-6 rounded-lg border border-gray-200 p-4">
-            <div className="flex items-center justify-between">
-              <div><p className="text-sm font-medium text-gray-900">Two-Factor Authentication</p><p className="text-xs text-gray-500">Add an extra layer of security</p></div>
-              <label className="relative inline-flex cursor-pointer items-center">
-                <input type="checkbox" className="peer sr-only" />
-                <div className="h-6 w-11 rounded-full bg-gray-200 transition-colors peer-checked:bg-primary-600" />
-                <div className="absolute left-0.5 top-0.5 h-5 w-5 rounded-full bg-white transition-transform peer-checked:translate-x-5" />
-              </label>
-            </div>
+          {pwState.error && (
+            <div className="mt-4 flex items-center gap-2 rounded-lg border border-error-200 bg-error-50 px-4 py-2.5 text-sm text-error-700"><AlertCircle className="h-4 w-4" />{pwState.error}</div>
+          )}
+          <div className="mt-6 flex items-center gap-3">
+            <button className="btn-primary" onClick={savePassword} disabled={pwState.saving}>
+              {pwState.saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}Update Password
+            </button>
+            {pwState.ok && <span className="text-sm text-success-600 animate-fade-in">Password updated!</span>}
           </div>
-          <div className="mt-6"><button className="btn-primary" onClick={handleSave}><Save className="h-4 w-4" />Update Security</button></div>
         </div>
       )}
 
@@ -129,18 +170,17 @@ export function SettingsPage() {
             <Field label="Date Format"><select className="input-field"><option>MM/DD/YYYY</option><option>DD/MM/YYYY</option><option>YYYY-MM-DD</option></select></Field>
             <Field label="Theme"><select className="input-field"><option>Light</option><option>Dark</option><option>System Default</option></select></Field>
           </div>
-          <div className="mt-6"><button className="btn-primary" onClick={handleSave}><Save className="h-4 w-4" />Save Preferences</button></div>
         </div>
       )}
     </div>
   );
 }
 
-function Field({ label, defaultValue, type = 'text', children }: { label: string; defaultValue?: string; type?: string; children?: React.ReactNode }) {
+function Field({ label, children }: { label: string; children?: React.ReactNode }) {
   return (
     <div>
       <label className="mb-1.5 block text-sm font-medium text-gray-700">{label}</label>
-      {children || <input className="input-field" type={type} defaultValue={defaultValue} placeholder={label} />}
+      {children}
     </div>
   );
 }

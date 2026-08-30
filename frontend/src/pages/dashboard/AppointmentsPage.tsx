@@ -86,7 +86,7 @@ export function AppointmentsPage() {
     <div className="space-y-6">
       <div className="grid gap-4 sm:grid-cols-4">
         <StatCard label="Total" value={appointments.length} icon={CalendarDays} color="primary" />
-        <StatCard label="Today" value={appointments.filter((a) => a.date === '2024-08-30').length} icon={Clock} color="secondary" />
+        <StatCard label="Today" value={appointments.filter((a) => a.date === new Date().toISOString().split('T')[0]).length} icon={Clock} color="secondary" />
         <StatCard label="Completed" value={appointments.filter((a) => a.status === 'Completed').length} icon={CalendarDays} color="success" />
         <StatCard label="Cancelled" value={appointments.filter((a) => a.status === 'Cancelled').length} icon={CalendarDays} color="error" />
       </div>

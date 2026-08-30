@@ -1,11 +1,10 @@
 import { useEffect, useState, useCallback } from 'react';
-import { Receipt, Plus, Eye, DollarSign, TrendingUp, AlertCircle, Clock } from 'lucide-react';
+import { Receipt, Eye, DollarSign, AlertCircle, Clock } from 'lucide-react';
 import { DataTable, type Column } from '@/components/ui/DataTable';
 import { Modal } from '@/components/ui/Modal';
 import { SectionLoader, ErrorState } from '@/components/ui/SectionLoader';
 import { StatCard } from '@/components/ui/StatCard';
 import { InvoiceStatusBadge } from '@/components/ui/StatusBadge';
-import { Badge } from '@/components/ui/Badge';
 import { invoiceApi } from '@/services/api';
 import type { Invoice, InvoiceStatus } from '@/types';
 

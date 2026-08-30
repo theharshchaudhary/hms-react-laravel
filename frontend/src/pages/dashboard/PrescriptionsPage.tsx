@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from 'react';
-import { Pill, Plus, Eye, Search } from 'lucide-react';
+import { Pill, Eye } from 'lucide-react';
 import { DataTable, type Column } from '@/components/ui/DataTable';
 import { Modal } from '@/components/ui/Modal';
 import { SectionLoader, ErrorState } from '@/components/ui/SectionLoader';

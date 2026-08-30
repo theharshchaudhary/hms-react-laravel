@@ -1,26 +1,32 @@
-import { BarChart3, Download, TrendingUp, Users, CalendarDays, Receipt, Stethoscope, Activity } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { BarChart3, Download, TrendingUp, CalendarDays, Receipt, Stethoscope, Activity, Users } from 'lucide-react';
 import { BarChart, DonutChart, LineChart } from '@/components/dashboard/Chart';
 import { StatCard } from '@/components/ui/StatCard';
-import { mockDepartments, mockAppointments, mockInvoices } from '@/data/mockData';
+import { SectionLoader, ErrorState } from '@/components/ui/SectionLoader';
+import { analyticsApi, type ReportsSummary } from '@/services/api';
+
+const STATUS_COLORS: Record<string, string> = {
+  Completed: '#22c55e', Scheduled: '#3399ff', Confirmed: '#1463e1',
+  Cancelled: '#ef4444', 'In Progress': '#f59e0b', 'No Show': '#94a3b8',
+};
 
 export function ReportsPage() {
-  const deptData = mockDepartments.map((d) => ({ label: d.name.split(' ')[0], value: d.totalDoctors }));
-  const revenueData = [
-    { label: 'Jan', value: 45 }, { label: 'Feb', value: 52 }, { label: 'Mar', value: 48 },
-    { label: 'Apr', value: 61 }, { label: 'May', value: 68 }, { label: 'Jun', value: 73 },
-    { label: 'Jul', value: 65 }, { label: 'Aug', value: 82 },
-  ];
-  const appointmentData = [
-    { label: 'Mon', value: 42 }, { label: 'Tue', value: 55 }, { label: 'Wed', value: 48 },
-    { label: 'Thu', value: 65 }, { label: 'Fri', value: 72 }, { label: 'Sat', value: 38 }, { label: 'Sun', value: 25 },
-  ];
-  const statusData = [
-    { label: 'Completed', value: mockAppointments.filter((a) => a.status === 'Completed').length, color: '#22c55e' },
-    { label: 'Scheduled', value: mockAppointments.filter((a) => a.status === 'Scheduled').length, color: '#3399ff' },
-    { label: 'Confirmed', value: mockAppointments.filter((a) => a.status === 'Confirmed').length, color: '#1463e1' },
-    { label: 'Cancelled', value: mockAppointments.filter((a) => a.status === 'Cancelled').length, color: '#ef4444' },
-  ];
-  const totalRevenue = mockInvoices.reduce((s, i) => s + i.paidAmount, 0);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
+  const [data, setData] = useState<ReportsSummary | null>(null);
+
+  const load = () => {
+    setLoading(true);
+    setError(false);
+    analyticsApi.reports().then(setData).catch(() => setError(true)).finally(() => setLoading(false));
+  };
+
+  useEffect(() => { load(); }, []);
+
+  if (loading) return <SectionLoader label="Loading reports..." />;
+  if (error || !data) return <ErrorState message="Failed to load reports" onRetry={load} />;
+
+  const statusData = data.appointmentStatus.map((s) => ({ ...s, color: STATUS_COLORS[s.label] || '#3399ff' }));
 
   const reportCards = [
     { title: 'Patient Demographics Report', desc: 'Age, gender, and blood group distribution', icon: Users, colorClass: 'bg-primary-50 text-primary-600' },
@@ -34,27 +40,27 @@ export function ReportsPage() {
   return (
     <div className="space-y-6">
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <StatCard label="Total Revenue" value={`$${totalRevenue.toLocaleString()}`} icon={TrendingUp} color="success" trend={{ value: 15, positive: true }} />
-        <StatCard label="Appointments" value={mockAppointments.length} icon={CalendarDays} color="primary" trend={{ value: 8, positive: true }} />
-        <StatCard label="Departments" value={mockDepartments.length} icon={Activity} color="secondary" />
-        <StatCard label="Avg Rating" value="4.8" icon={Stethoscope} color="accent" />
+        <StatCard label="Total Revenue" value={`$${data.totalRevenue.toLocaleString()}`} icon={TrendingUp} color="success" />
+        <StatCard label="Appointments" value={data.totalAppointments} icon={CalendarDays} color="primary" />
+        <StatCard label="Departments" value={data.totalDepartments} icon={Activity} color="secondary" />
+        <StatCard label="Avg Rating" value={data.avgDoctorRating.toFixed(1)} icon={Stethoscope} color="accent" />
       </div>
 
       <div className="grid gap-6 lg:grid-cols-2">
         <div className="card p-6">
-          <div className="flex items-center justify-between"><div><h3 className="text-base font-semibold text-gray-900">Revenue Trend</h3><p className="text-sm text-gray-500">Monthly revenue (in $K)</p></div><TrendingUp className="h-5 w-5 text-success-500" /></div>
-          <div className="mt-6"><LineChart data={revenueData} height={220} /></div>
+          <div className="flex items-center justify-between"><div><h3 className="text-base font-semibold text-gray-900">Revenue Trend</h3><p className="text-sm text-gray-500">Monthly revenue ($)</p></div><TrendingUp className="h-5 w-5 text-success-500" /></div>
+          <div className="mt-6"><LineChart data={data.monthlyRevenue} height={220} /></div>
         </div>
         <div className="card p-6">
           <h3 className="text-base font-semibold text-gray-900">Weekly Appointments</h3><p className="text-sm text-gray-500">Daily appointment count</p>
-          <div className="mt-6"><BarChart data={appointmentData.map((d, i) => ({ ...d, color: i === 4 ? 'bg-secondary-500' : 'bg-primary-400' }))} height={220} /></div>
+          <div className="mt-6"><BarChart data={data.weeklyAppointments.map((d, i) => ({ ...d, color: i === 4 ? 'bg-secondary-500' : 'bg-primary-400' }))} height={220} /></div>
         </div>
       </div>
 
       <div className="grid gap-6 lg:grid-cols-2">
         <div className="card p-6">
           <h3 className="text-base font-semibold text-gray-900">Doctors per Department</h3><p className="text-sm text-gray-500">Staff distribution</p>
-          <div className="mt-6"><BarChart data={deptData.map((d) => ({ ...d, color: 'bg-secondary-400' }))} height={220} /></div>
+          <div className="mt-6"><BarChart data={data.doctorsPerDepartment.map((d) => ({ ...d, color: 'bg-secondary-400' }))} height={220} /></div>
         </div>
         <div className="card p-6">
           <h3 className="text-base font-semibold text-gray-900">Appointment Status</h3><p className="text-sm text-gray-500">Distribution breakdown</p>

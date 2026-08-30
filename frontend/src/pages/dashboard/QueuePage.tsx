@@ -1,10 +1,10 @@
 import { useEffect, useState, useCallback } from 'react';
-import { ListOrdered, Clock, UserPlus, Play, Check, SkipForward, ArrowUp, ArrowDown } from 'lucide-react';
+import { ListOrdered, Clock, Play, Check, SkipForward, ArrowUp, ArrowDown } from 'lucide-react';
 import { SectionLoader, ErrorState } from '@/components/ui/SectionLoader';
 import { StatCard } from '@/components/ui/StatCard';
 import { QueueStatusBadge, PriorityBadge } from '@/components/ui/StatusBadge';
 import { queueApi } from '@/services/api';
-import type { QueueEntry, QueueStatus, QueuePriority } from '@/types';
+import type { QueueEntry, QueueStatus } from '@/types';
 
 export function QueuePage() {
   const [queue, setQueue] = useState<QueueEntry[]>([]);

@@ -1,14 +1,16 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   HeartPulse, Brain, Baby, Bone, Stethoscope, Pill, Hand, Flower,
   Ambulance, Scan, FlaskConical, Video, Bed, Star, Phone, Mail, MapPin,
   Clock, ShieldCheck, Award, Users, Activity, ArrowRight, CheckCircle2,
-  Quote, Calendar, Send,
+  Quote, Calendar, Send, Loader2, AlertCircle,
 } from 'lucide-react';
 import { Navbar } from '@/components/landing/Navbar';
 import { Footer } from '@/components/landing/Footer';
 import { Avatar } from '@/components/ui/Avatar';
 import { mockDoctors, mockDepartments, mockTestimonials, mockFacilities, hospitalStats } from '@/data/mockData';
+import { publicApi, contactApi, type HospitalStats } from '@/services/api';
+import type { Doctor, Department, Testimonial, Facility } from '@/types';
 import { navigate } from '@/router/Router';
 
 const iconMap: Record<string, typeof HeartPulse> = {
@@ -19,12 +21,38 @@ const iconMap: Record<string, typeof HeartPulse> = {
 export function LandingPage() {
   const [contactForm, setContactForm] = useState({ name: '', email: '', phone: '', message: '' });
   const [contactSent, setContactSent] = useState(false);
+  const [contactSending, setContactSending] = useState(false);
+  const [contactError, setContactError] = useState<string | null>(null);
 
-  const handleContactSubmit = (e: React.FormEvent) => {
+  const [doctors, setDoctors] = useState<Doctor[]>(mockDoctors);
+  const [departments, setDepartments] = useState<Department[]>(mockDepartments);
+  const [testimonials, setTestimonials] = useState<Testimonial[]>(mockTestimonials);
+  const [facilities, setFacilities] = useState<Facility[]>(mockFacilities);
+  const [stats, setStats] = useState<HospitalStats>(hospitalStats);
+
+  useEffect(() => {
+    // Live data, with the bundled sample data as a graceful fallback.
+    publicApi.doctors().then((d) => d.length && setDoctors(d)).catch(() => {});
+    publicApi.departments().then((d) => d.length && setDepartments(d)).catch(() => {});
+    publicApi.testimonials().then((t) => t.length && setTestimonials(t)).catch(() => {});
+    publicApi.facilities().then((f) => f.length && setFacilities(f)).catch(() => {});
+    publicApi.stats().then(setStats).catch(() => {});
+  }, []);
+
+  const handleContactSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setContactSent(true);
-    setContactForm({ name: '', email: '', phone: '', message: '' });
-    setTimeout(() => setContactSent(false), 4000);
+    setContactSending(true);
+    setContactError(null);
+    try {
+      await contactApi.send(contactForm);
+      setContactSent(true);
+      setContactForm({ name: '', email: '', phone: '', message: '' });
+      setTimeout(() => setContactSent(false), 4000);
+    } catch (err) {
+      setContactError(err instanceof Error ? err.message : 'Failed to send message');
+    } finally {
+      setContactSending(false);
+    }
   };
 
   return (
@@ -62,17 +90,17 @@ export function LandingPage() {
               </div>
               <div className="mt-10 flex items-center gap-8">
                 <div>
-                  <p className="text-3xl font-bold text-gray-900">{hospitalStats.satisfactionRate}%</p>
+                  <p className="text-3xl font-bold text-gray-900">{stats.satisfactionRate}%</p>
                   <p className="text-sm text-gray-500">Patient Satisfaction</p>
                 </div>
                 <div className="h-12 w-px bg-gray-200" />
                 <div>
-                  <p className="text-3xl font-bold text-gray-900">{hospitalStats.yearsOfService}+</p>
+                  <p className="text-3xl font-bold text-gray-900">{stats.yearsOfService}+</p>
                   <p className="text-sm text-gray-500">Years of Service</p>
                 </div>
                 <div className="h-12 w-px bg-gray-200" />
                 <div>
-                  <p className="text-3xl font-bold text-gray-900">{hospitalStats.emergencyResponse}min</p>
+                  <p className="text-3xl font-bold text-gray-900">{stats.emergencyResponse}min</p>
                   <p className="text-sm text-gray-500">Emergency Response</p>
                 </div>
               </div>
@@ -93,7 +121,7 @@ export function LandingPage() {
                     <Activity className="h-6 w-6" />
                   </div>
                   <div>
-                    <p className="text-2xl font-bold text-gray-900">{hospitalStats.totalDoctors}</p>
+                    <p className="text-2xl font-bold text-gray-900">{stats.totalDoctors}</p>
                     <p className="text-sm text-gray-500">Expert Doctors</p>
                   </div>
                 </div>
@@ -119,10 +147,10 @@ export function LandingPage() {
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-2 gap-8 lg:grid-cols-4">
             {[
-              { icon: Users, label: 'Total Patients', value: hospitalStats.totalPatients.toLocaleString(), colorClass: 'bg-primary-50 text-primary-600' },
-              { icon: Stethoscope, label: 'Expert Doctors', value: hospitalStats.totalDoctors, colorClass: 'bg-secondary-50 text-secondary-600' },
-              { icon: HeartPulse, label: 'Total Beds', value: hospitalStats.totalBeds, colorClass: 'bg-accent-50 text-accent-600' },
-              { icon: Calendar, label: 'Monthly Appointments', value: hospitalStats.monthlyAppointments.toLocaleString(), colorClass: 'bg-success-50 text-success-600' },
+              { icon: Users, label: 'Total Patients', value: stats.totalPatients.toLocaleString(), colorClass: 'bg-primary-50 text-primary-600' },
+              { icon: Stethoscope, label: 'Expert Doctors', value: stats.totalDoctors, colorClass: 'bg-secondary-50 text-secondary-600' },
+              { icon: HeartPulse, label: 'Total Beds', value: stats.totalBeds, colorClass: 'bg-accent-50 text-accent-600' },
+              { icon: Calendar, label: 'Monthly Appointments', value: stats.monthlyAppointments.toLocaleString(), colorClass: 'bg-success-50 text-success-600' },
             ].map((stat, i) => (
               <div key={i} className="flex items-center gap-4">
                 <div className={`flex h-14 w-14 items-center justify-center rounded-2xl ${stat.colorClass}`}>
@@ -248,7 +276,7 @@ export function LandingPage() {
           </div>
 
           <div className="mt-16 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
-            {mockDepartments.map((dept) => {
+            {departments.map((dept) => {
               const Icon = iconMap[dept.icon] || Stethoscope;
               const occupancy = Math.round((dept.occupiedBeds / dept.totalBeds) * 100);
               return (
@@ -302,7 +330,7 @@ export function LandingPage() {
           </div>
 
           <div className="mt-16 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
-            {mockDoctors.slice(0, 8).map((doctor) => (
+            {doctors.slice(0, 8).map((doctor) => (
               <div key={doctor.id} className="group rounded-2xl border border-gray-200 bg-white p-6 text-center shadow-soft transition-all hover:-translate-y-1 hover:shadow-card">
                 <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-gradient-to-br from-primary-100 to-secondary-100 text-2xl font-bold text-primary-700">
                   {doctor.avatar}
@@ -346,7 +374,7 @@ export function LandingPage() {
           </div>
 
           <div className="mt-16 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
-            {mockFacilities.map((facility) => {
+            {facilities.map((facility) => {
               const Icon = iconMap[facility.icon] || Stethoscope;
               return (
                 <div key={facility.id} className="group flex flex-col items-start rounded-2xl border border-gray-200 bg-white p-6 shadow-soft transition-all hover:shadow-card">
@@ -406,7 +434,7 @@ export function LandingPage() {
           </div>
 
           <div className="mt-16 grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-            {mockTestimonials.map((t) => (
+            {testimonials.map((t) => (
               <div key={t.id} className="flex flex-col rounded-2xl border border-gray-200 bg-white p-6 shadow-soft transition-all hover:shadow-card">
                 <div className="flex gap-1">
                   {Array.from({ length: 5 }).map((_, i) => (
@@ -520,9 +548,15 @@ export function LandingPage() {
                       placeholder="How can we help you?"
                     />
                   </div>
-                  <button type="submit" className="btn-primary w-full">
-                    <Send className="h-4 w-4" />
-                    Send Message
+                  {contactError && (
+                    <div className="flex items-center gap-2 rounded-lg border border-error-200 bg-error-50 px-4 py-2.5 text-sm text-error-700">
+                      <AlertCircle className="h-4 w-4 shrink-0" />
+                      {contactError}
+                    </div>
+                  )}
+                  <button type="submit" disabled={contactSending} className="btn-primary w-full">
+                    {contactSending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+                    {contactSending ? 'Sending...' : 'Send Message'}
                   </button>
                 </form>
               )}

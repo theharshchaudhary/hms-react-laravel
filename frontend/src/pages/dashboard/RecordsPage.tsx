@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from 'react';
-import { FileText, Search, Filter, FileImage, FlaskConical, Activity, Stethoscope, HeartPulse } from 'lucide-react';
+import { FileText, Filter, FileImage, FlaskConical, Activity, Stethoscope, HeartPulse } from 'lucide-react';
 import { DataTable, type Column } from '@/components/ui/DataTable';
 import { Modal } from '@/components/ui/Modal';
 import { SectionLoader, ErrorState } from '@/components/ui/SectionLoader';
