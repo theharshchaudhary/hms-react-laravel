@@ -1,4 +1,10 @@
 import { useState, useEffect, useCallback } from 'react';
+import type { UserRole } from '@/types';
+
+/** Where a user lands after authenticating, based on role. */
+export function homePathForRole(role: UserRole | undefined): string {
+  return role === 'patient' ? '/portal' : '/dashboard';
+}
 
 export function useHashRoute() {
   const [route, setRoute] = useState(() => window.location.hash.slice(1) || '/');

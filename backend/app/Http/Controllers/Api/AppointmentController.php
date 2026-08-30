@@ -2,19 +2,26 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Http\Controllers\Concerns\ScopesToDoctor;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\AppointmentResource;
+use App\Http\Resources\QueueEntryResource;
 use App\Models\Appointment;
 use App\Models\Doctor;
 use App\Models\Patient;
+use App\Models\QueueEntry;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 
 class AppointmentController extends Controller
 {
+    use ScopesToDoctor;
+
     public function index(Request $request)
     {
         $query = Appointment::query()->orderBy('date')->orderBy('time');
+        $this->scopeToDoctor($query, $request);
 
         if ($status = $request->query('status')) {
             $query->where('status', $status);
@@ -34,7 +41,10 @@ class AppointmentController extends Controller
 
     public function store(Request $request)
     {
-        $appointment = Appointment::create($this->validateData($request));
+        $data = $this->validateData($request);
+        $this->assertSlotFree($data['doctor_id'], $data['date'], $data['time']);
+
+        $appointment = Appointment::create($data);
 
         return (new AppointmentResource($appointment))->response()->setStatusCode(201);
     }
@@ -46,7 +56,20 @@ class AppointmentController extends Controller
 
     public function update(Request $request, Appointment $appointment)
     {
-        $appointment->update($this->validateData($request, $appointment));
+        $data = $this->validateData($request, $appointment);
+        $this->assertSlotFree(
+            $data['doctor_id'] ?? $appointment->doctor_id,
+            $data['date'] ?? $appointment->date->format('Y-m-d'),
+            $data['time'] ?? $appointment->time,
+            $appointment->id,
+        );
+
+        $wasCompleted = $appointment->status === 'Completed';
+        $appointment->update($data);
+
+        if (! $wasCompleted && $appointment->status === 'Completed') {
+            $this->onCompleted($appointment);
+        }
 
         return new AppointmentResource($appointment->fresh());
     }
@@ -56,6 +79,52 @@ class AppointmentController extends Controller
         $appointment->delete();
 
         return response()->noContent();
+    }
+
+    /**
+     * Turn a scheduled appointment into a live queue token for today.
+     */
+    public function checkIn(Request $request, Appointment $appointment)
+    {
+        if (in_array($appointment->status, ['Completed', 'Cancelled', 'No Show'], true)) {
+            throw ValidationException::withMessages(['appointment' => ['This appointment cannot be checked in.']]);
+        }
+
+        $entry = $appointment->queueEntry()->first() ?? QueueEntry::create([
+            'token_number' => (int) QueueEntry::max('token_number') + 1,
+            'patient_id' => $appointment->patient_id,
+            'doctor_id' => $appointment->doctor_id,
+            'appointment_id' => $appointment->id,
+            'patient_name' => $appointment->patient_name,
+            'doctor_name' => $appointment->doctor_name,
+            'department' => $appointment->department,
+            'priority' => $appointment->type === 'Emergency' ? 'Emergency' : 'Normal',
+            'status' => 'Waiting',
+            'check_in_time' => now()->format('H:i'),
+            'estimated_wait' => 15,
+        ]);
+
+        if ($appointment->status === 'Scheduled') {
+            $appointment->update(['status' => 'Confirmed']);
+        }
+
+        return (new QueueEntryResource($entry))->response()->setStatusCode(201);
+    }
+
+    private function assertSlotFree(?int $doctorId, ?string $date, ?string $time, ?int $ignoreId = null): void
+    {
+        if ($doctorId && $date && $time && Appointment::slotTaken($doctorId, $date, $time, $ignoreId)) {
+            throw ValidationException::withMessages([
+                'time' => ['That doctor already has an appointment at this date and time.'],
+            ]);
+        }
+    }
+
+    public static function onCompleted(Appointment $appointment): void
+    {
+        if ($appointment->patient) {
+            $appointment->patient->update(['last_visit' => now()->toDateString()]);
+        }
     }
 
     /**
@@ -92,7 +161,6 @@ class AppointmentController extends Controller
             }
         }
 
-        // Keep the denormalised names in sync with the referenced records.
         if (! empty($data['patient_id']) && $patient = Patient::find($data['patient_id'])) {
             $data['patient_name'] = $patient->name;
         }

@@ -15,6 +15,9 @@ const emptyForm: Omit<Department, 'id'> = {
   location: '', phone: '', icon: 'Stethoscope',
 };
 
+// totalDoctors / occupiedBeds are derived server-side and not part of the form payload.
+type DeptForm = Pick<Department, 'name' | 'head' | 'description' | 'totalBeds' | 'location' | 'phone' | 'icon'>;
+
 export function DepartmentsPage() {
   const [departments, setDepartments] = useState<Department[]>([]);
   const [loading, setLoading] = useState(true);
@@ -33,7 +36,15 @@ export function DepartmentsPage() {
 
   const openCreate = () => { setEditing(null); setForm(emptyForm); setModalOpen(true); };
   const openEdit = (d: Department) => { setEditing(d); setForm({ ...d }); setModalOpen(true); };
-  const handleSave = async () => { if (editing) { await departmentApi.update(editing.id, form); } else { await departmentApi.create(form); } setModalOpen(false); load(); };
+  const handleSave = async () => {
+    const payload: DeptForm = {
+      name: form.name, head: form.head, description: form.description,
+      totalBeds: form.totalBeds, location: form.location, phone: form.phone, icon: form.icon,
+    };
+    if (editing) await departmentApi.update(editing.id, payload);
+    else await departmentApi.create(payload);
+    setModalOpen(false); load();
+  };
   const handleDelete = async () => { if (deleteTarget) { await departmentApi.remove(deleteTarget.id); load(); } };
 
   const totalBeds = departments.reduce((s, d) => s + d.totalBeds, 0);
@@ -97,10 +108,9 @@ export function DepartmentsPage() {
           <Field label="Department Head"><input className="input-field" value={form.head} onChange={(e) => setForm({ ...form, head: e.target.value })} /></Field>
           <Field label="Location"><input className="input-field" value={form.location} onChange={(e) => setForm({ ...form, location: e.target.value })} /></Field>
           <Field label="Phone"><input className="input-field" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} /></Field>
-          <Field label="Total Doctors"><input className="input-field" type="number" value={form.totalDoctors} onChange={(e) => setForm({ ...form, totalDoctors: parseInt(e.target.value) || 0 })} /></Field>
-          <Field label="Total Beds"><input className="input-field" type="number" value={form.totalBeds} onChange={(e) => setForm({ ...form, totalBeds: parseInt(e.target.value) || 0 })} /></Field>
-          <Field label="Occupied Beds"><input className="input-field" type="number" value={form.occupiedBeds} onChange={(e) => setForm({ ...form, occupiedBeds: parseInt(e.target.value) || 0 })} /></Field>
+          <Field label="Bed Capacity"><input className="input-field" type="number" value={form.totalBeds} onChange={(e) => setForm({ ...form, totalBeds: parseInt(e.target.value) || 0 })} /></Field>
           <Field label="Icon"><select className="input-field" value={form.icon} onChange={(e) => setForm({ ...form, icon: e.target.value })}>{iconOptions.map((i) => <option key={i} value={i}>{i}</option>)}</select></Field>
+          <div className="sm:col-span-2 rounded-lg bg-gray-50 px-4 py-2.5 text-xs text-gray-500">Doctor count and bed occupancy are calculated automatically from staff and admitted patients.</div>
           <div className="sm:col-span-2"><Field label="Description"><textarea className="input-field resize-none" rows={3} value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} /></Field></div>
         </div>
       </Modal>

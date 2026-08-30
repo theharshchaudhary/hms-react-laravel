@@ -7,6 +7,10 @@ use App\Models\Appointment;
 use App\Models\Department;
 use App\Models\Doctor;
 use App\Models\Invoice;
+use App\Models\Patient;
+use App\Models\Prescription;
+use Barryvdh\DomPDF\Facade\Pdf;
+use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 
 class ReportController extends Controller
@@ -49,12 +53,100 @@ class ReportController extends Controller
             'weeklyAppointments' => $weekly,
             'doctorsPerDepartment' => Department::orderBy('name')->get()->map(fn ($d) => [
                 'label' => explode(' ', $d->name)[0],
-                'value' => $d->total_doctors ?: Doctor::where('department', $d->name)->count(),
+                'value' => Doctor::where('department', $d->name)->count(),
             ])->values(),
             'appointmentStatus' => collect($statuses)
                 ->map(fn ($s) => ['label' => $s, 'value' => (int) ($statusCounts[$s] ?? 0)])
                 ->filter(fn ($row) => $row['value'] > 0)
                 ->values(),
         ]);
+    }
+
+    /**
+     * Downloadable PDF report. ?type=revenue|appointments|departments|demographics|doctors|prescriptions
+     */
+    public function pdf(Request $request)
+    {
+        $type = $request->query('type', 'revenue');
+
+        [$title, $columns, $rows] = match ($type) {
+            'appointments' => $this->appointmentsReport(),
+            'departments' => $this->departmentsReport(),
+            'demographics' => $this->demographicsReport(),
+            'doctors' => $this->doctorsReport(),
+            'prescriptions' => $this->prescriptionsReport(),
+            default => $this->revenueReport(),
+        };
+
+        $pdf = Pdf::loadView('pdf.report', compact('title', 'columns', 'rows'))->setPaper('a4');
+
+        return $pdf->download(str($title)->slug().'-'.now()->format('Y-m-d').'.pdf');
+    }
+
+    private function revenueReport(): array
+    {
+        $rows = Invoice::orderBy('date')->get()->map(fn ($i) => [
+            $i->invoice_number, $i->patient_name, optional($i->date)->format('Y-m-d'),
+            '$'.number_format((float) $i->amount, 2), '$'.number_format((float) $i->paid_amount, 2), $i->status,
+        ])->all();
+
+        return ['Revenue Report', ['Invoice', 'Patient', 'Date', 'Amount', 'Paid', 'Status'], $rows];
+    }
+
+    private function appointmentsReport(): array
+    {
+        $rows = Appointment::orderBy('date')->orderBy('time')->get()->map(fn ($a) => [
+            optional($a->date)->format('Y-m-d'), $a->time, $a->patient_name, $a->doctor_name, $a->department, $a->type, $a->status,
+        ])->all();
+
+        return ['Appointment Analytics', ['Date', 'Time', 'Patient', 'Doctor', 'Department', 'Type', 'Status'], $rows];
+    }
+
+    private function departmentsReport(): array
+    {
+        $rows = Department::orderBy('name')->get()->map(fn ($d) => [
+            $d->name, $d->head,
+            (string) Doctor::where('department', $d->name)->count(),
+            (string) $d->total_beds,
+            (string) Patient::where('department', $d->name)->where('status', 'Admitted')->count(),
+        ])->all();
+
+        return ['Department Utilization', ['Department', 'Head', 'Doctors', 'Beds', 'Occupied'], $rows];
+    }
+
+    private function demographicsReport(): array
+    {
+        $byGender = Patient::selectRaw('gender, count(*) c')->groupBy('gender')->pluck('c', 'gender');
+        $byBlood = Patient::selectRaw('blood_group, count(*) c')->groupBy('blood_group')->pluck('c', 'blood_group');
+        $rows = [];
+        foreach ($byGender as $g => $c) {
+            $rows[] = ['Gender', $g ?: '—', (string) $c];
+        }
+        foreach ($byBlood as $b => $c) {
+            $rows[] = ['Blood group', $b ?: '—', (string) $c];
+        }
+
+        return ['Patient Demographics Report', ['Category', 'Value', 'Count'], $rows];
+    }
+
+    private function doctorsReport(): array
+    {
+        $rows = Doctor::orderByDesc('rating')->get()->map(fn ($d) => [
+            $d->name, $d->specialization, $d->department, (string) $d->experience.' yrs',
+            number_format((float) $d->rating, 1),
+            (string) Appointment::where('doctor_id', $d->id)->whereNotNull('patient_id')->distinct()->count('patient_id'),
+        ])->all();
+
+        return ['Doctor Performance', ['Doctor', 'Specialization', 'Department', 'Experience', 'Rating', 'Patients'], $rows];
+    }
+
+    private function prescriptionsReport(): array
+    {
+        $rows = Prescription::orderByDesc('date')->get()->map(fn ($p) => [
+            optional($p->date)->format('Y-m-d'), $p->patient_name, $p->doctor_name, $p->diagnosis,
+            (string) count($p->medications ?? []), $p->status,
+        ])->all();
+
+        return ['Prescription Trends', ['Date', 'Patient', 'Prescriber', 'Diagnosis', 'Meds', 'Status'], $rows];
     }
 }

@@ -20,6 +20,10 @@ class UserResource extends JsonResource
             'phone' => $this->phone,
             'department' => $this->department,
             'avatar' => $this->avatar ?: $this->initials(),
+            'patientId' => $this->patient_id ? (string) $this->patient_id : null,
+            'doctorId' => $this->doctor_id ? (string) $this->doctor_id : null,
+            'doctorName' => $this->whenLoaded('doctor', fn () => $this->doctor?->name),
+            'createdAt' => optional($this->created_at)->toDateString(),
         ];
     }
 }

@@ -14,6 +14,8 @@ import { RecordsPage } from '@/pages/dashboard/RecordsPage';
 import { BillingPage } from '@/pages/dashboard/BillingPage';
 import { ReportsPage } from '@/pages/dashboard/ReportsPage';
 import { SettingsPage } from '@/pages/dashboard/SettingsPage';
+import { UsersPage } from '@/pages/dashboard/UsersPage';
+import { MessagesPage } from '@/pages/dashboard/MessagesPage';
 import type { UserRole } from '@/types';
 
 const pageTitles: Record<string, string> = {
@@ -27,21 +29,27 @@ const pageTitles: Record<string, string> = {
   records: 'Medical Records',
   billing: 'Billing & Invoices',
   reports: 'Reports & Analytics',
+  messages: 'Messages',
+  users: 'User Management',
   settings: 'Settings',
 };
 
+const S: UserRole[] = ['super_admin', 'admin', 'doctor', 'receptionist'];
+
 const roleAccess: Record<string, UserRole[]> = {
-  dashboard: ['admin', 'doctor', 'receptionist'],
-  patients: ['admin', 'doctor', 'receptionist'],
-  doctors: ['admin', 'doctor'],
-  departments: ['admin', 'doctor', 'receptionist'],
-  appointments: ['admin', 'doctor', 'receptionist'],
-  queue: ['admin', 'doctor', 'receptionist'],
-  prescriptions: ['admin', 'doctor'],
-  records: ['admin', 'doctor'],
-  billing: ['admin', 'receptionist'],
-  reports: ['admin'],
-  settings: ['admin', 'doctor', 'receptionist'],
+  dashboard: S,
+  patients: S,
+  doctors: ['super_admin', 'admin', 'doctor'],
+  departments: S,
+  appointments: S,
+  queue: S,
+  prescriptions: ['super_admin', 'admin', 'doctor'],
+  records: ['super_admin', 'admin', 'doctor'],
+  billing: ['super_admin', 'admin', 'receptionist'],
+  reports: ['super_admin', 'admin'],
+  messages: ['super_admin', 'admin'],
+  users: ['super_admin'],
+  settings: S,
 };
 
 export function DashboardPage({ activeKey }: { activeKey: string }) {
@@ -68,6 +76,8 @@ export function DashboardPage({ activeKey }: { activeKey: string }) {
       case 'records': return <RecordsPage />;
       case 'billing': return <BillingPage />;
       case 'reports': return <ReportsPage />;
+      case 'messages': return <MessagesPage />;
+      case 'users': return <UsersPage />;
       case 'settings': return <SettingsPage />;
       default: return <DashboardOverview />;
     }

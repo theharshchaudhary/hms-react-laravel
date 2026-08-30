@@ -17,10 +17,14 @@ return new class extends Migration
             $table->string('email')->unique();
             $table->timestamp('email_verified_at')->nullable();
             $table->string('password');
-            $table->enum('role', ['admin', 'doctor', 'receptionist'])->default('receptionist');
+            $table->enum('role', ['super_admin', 'admin', 'doctor', 'receptionist', 'patient'])->default('patient');
             $table->string('phone')->nullable();
             $table->string('department')->nullable();
             $table->string('avatar')->nullable();
+            // Links a patient-role user to their clinical record (FK added after patients table).
+            $table->unsignedBigInteger('patient_id')->nullable();
+            // Links a doctor-role user to their doctor profile (FK added after doctors table).
+            $table->unsignedBigInteger('doctor_id')->nullable();
             $table->rememberToken();
             $table->timestamps();
         });

@@ -2,8 +2,10 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Http\Controllers\Concerns\ScopesToDoctor;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\PrescriptionResource;
+use App\Models\Doctor;
 use App\Models\Patient;
 use App\Models\Prescription;
 use Illuminate\Http\Request;
@@ -11,15 +13,21 @@ use Illuminate\Validation\Rule;
 
 class PrescriptionController extends Controller
 {
+    use ScopesToDoctor;
+
     public function index(Request $request)
     {
         $query = Prescription::query()->latest('date')->latest('id');
+        $this->scopeToDoctor($query, $request);
 
         if ($status = $request->query('status')) {
             $query->where('status', $status);
         }
         if ($patientId = $request->query('patientId')) {
             $query->where('patient_id', $patientId);
+        }
+        if ($request->boolean('refillRequested')) {
+            $query->where('refill_requested', true);
         }
 
         return PrescriptionResource::collection($query->get());
@@ -54,7 +62,8 @@ class PrescriptionController extends Controller
         $validated = $request->validate([
             'patientId' => ['nullable', 'exists:patients,id'],
             'patientName' => ['nullable', 'string', 'max:255'],
-            'doctorName' => [$isCreate ? 'required' : 'sometimes', 'string', 'max:255'],
+            'doctorId' => ['nullable', 'exists:doctors,id'],
+            'doctorName' => ['nullable', 'string', 'max:255'],
             'date' => ['nullable', 'date'],
             'medications' => [$isCreate ? 'required' : 'sometimes', 'array', 'min:1'],
             'medications.*.name' => ['required', 'string', 'max:255'],
@@ -64,6 +73,7 @@ class PrescriptionController extends Controller
             'diagnosis' => ['nullable', 'string', 'max:500'],
             'notes' => ['nullable', 'string', 'max:2000'],
             'status' => ['nullable', Rule::in(['Active', 'Completed', 'Expired'])],
+            'refillRequested' => ['sometimes', 'boolean'],
         ]);
 
         $data = [];
@@ -75,11 +85,29 @@ class PrescriptionController extends Controller
             ?? $prescription?->patient_name
             ?? 'Unknown';
 
-        foreach (['doctorName' => 'doctor_name', 'date' => 'date', 'medications' => 'medications',
+        // Doctor: explicit id > authored-by-me > name fallback.
+        $doctorId = $validated['doctorId'] ?? $this->currentDoctorId($request) ?? $prescription?->doctor_id;
+        if ($doctorId) {
+            $data['doctor_id'] = $doctorId;
+            if ($doctor = Doctor::find($doctorId)) {
+                $data['doctor_name'] = $doctor->name;
+            }
+        }
+        if (! isset($data['doctor_name'])) {
+            $data['doctor_name'] = $validated['doctorName'] ?? $prescription?->doctor_name
+                ?? optional($request->user())->name ?? 'Attending Physician';
+        }
+
+        foreach (['date' => 'date', 'medications' => 'medications',
             'diagnosis' => 'diagnosis', 'notes' => 'notes', 'status' => 'status'] as $in => $col) {
             if (array_key_exists($in, $validated)) {
                 $data[$col] = $validated[$in];
             }
+        }
+
+        if (array_key_exists('refillRequested', $validated)) {
+            $data['refill_requested'] = $validated['refillRequested'];
+            $data['refill_requested_at'] = $validated['refillRequested'] ? now() : null;
         }
 
         if ($isCreate) {

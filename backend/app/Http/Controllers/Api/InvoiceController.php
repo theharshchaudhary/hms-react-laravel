@@ -56,6 +56,11 @@ class InvoiceController extends Controller
         return new InvoiceResource($invoice);
     }
 
+    public function pdf(Invoice $invoice)
+    {
+        return PortalController::renderInvoicePdf($invoice);
+    }
+
     public function update(Request $request, Invoice $invoice)
     {
         $validated = $this->validatePayload($request, false);

@@ -50,19 +50,15 @@ class DepartmentController extends Controller
             'name' => [$department ? 'sometimes' : 'required', 'string', 'max:255', Rule::unique('departments', 'name')->ignore($department?->id)],
             'head' => ['nullable', 'string', 'max:255'],
             'description' => ['nullable', 'string', 'max:2000'],
-            'totalDoctors' => ['nullable', 'integer', 'min:0'],
             'totalBeds' => ['nullable', 'integer', 'min:0'],
-            'occupiedBeds' => ['nullable', 'integer', 'min:0'],
             'location' => ['nullable', 'string', 'max:255'],
             'phone' => ['nullable', 'string', 'max:40'],
             'icon' => ['nullable', 'string', 'max:60'],
         ]);
 
-        return collect($validated)->mapWithKeys(fn ($value, $key) => [match ($key) {
-            'totalDoctors' => 'total_doctors',
-            'totalBeds' => 'total_beds',
-            'occupiedBeds' => 'occupied_beds',
-            default => $key,
-        } => $value])->all();
+        // total_doctors / occupied_beds are derived (see DepartmentResource).
+        return collect($validated)->mapWithKeys(fn ($value, $key) => [
+            $key === 'totalBeds' ? 'total_beds' : $key => $value,
+        ])->all();
     }
 }

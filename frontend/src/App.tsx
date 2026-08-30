@@ -1,9 +1,10 @@
 import { AuthProvider, useAuth } from '@/context/AuthContext';
-import { useHashRoute, navigate } from '@/router/Router';
+import { useHashRoute, navigate, homePathForRole } from '@/router/Router';
 import { LandingPage } from '@/pages/LandingPage';
 import { LoginPage } from '@/pages/LoginPage';
 import { RegisterPage } from '@/pages/RegisterPage';
 import { DashboardPage } from '@/pages/DashboardPage';
+import { PortalPage } from '@/pages/PortalPage';
 
 function AppRoutes() {
   const { route } = useHashRoute();
@@ -21,19 +22,27 @@ function AppRoutes() {
   }
 
   if (root === 'login') {
-    if (user) { navigate('/dashboard'); return null; }
+    if (user) { navigate(homePathForRole(user.role)); return null; }
     return <LoginPage />;
   }
 
   if (root === 'register') {
-    if (user) { navigate('/dashboard'); return null; }
+    if (user) { navigate(homePathForRole(user.role)); return null; }
     return <RegisterPage />;
   }
 
   if (root === 'dashboard') {
     if (!user) { navigate('/login'); return null; }
+    if (user.role === 'patient') { navigate('/portal'); return null; }
     const activeKey = parts[1] || 'dashboard';
     return <DashboardPage activeKey={activeKey} />;
+  }
+
+  if (root === 'portal') {
+    if (!user) { navigate('/login'); return null; }
+    if (user.role !== 'patient') { navigate('/dashboard'); return null; }
+    const activeKey = parts[1] || 'overview';
+    return <PortalPage activeKey={activeKey} />;
   }
 
   return <LandingPage />;

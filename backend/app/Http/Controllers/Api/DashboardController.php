@@ -8,27 +8,34 @@ use App\Models\Appointment;
 use App\Models\Doctor;
 use App\Models\Invoice;
 use App\Models\Patient;
+use App\Models\Prescription;
+use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 
 class DashboardController extends Controller
 {
-    public function overview()
+    public function overview(Request $request)
     {
         $today = Carbon::today()->toDateString();
+        $doctorId = $request->user()?->scopedDoctorId();
+
+        // A doctor's dashboard is scoped to their own work.
+        $appts = fn () => Appointment::query()->when($doctorId, fn ($q) => $q->where('doctor_id', $doctorId));
+        $rx = fn () => Prescription::query()->when($doctorId, fn ($q) => $q->where('doctor_id', $doctorId));
 
         $statuses = ['Scheduled', 'Confirmed', 'In Progress', 'Completed', 'Cancelled', 'No Show'];
-        $statusCounts = Appointment::query()
+        $statusCounts = $appts()
             ->selectRaw('status, count(*) as aggregate')
             ->groupBy('status')
             ->pluck('aggregate', 'status');
 
         $weekStart = Carbon::now()->startOfWeek();
-        $weekly = collect(range(0, 6))->map(function ($offset) use ($weekStart) {
+        $weekly = collect(range(0, 6))->map(function ($offset) use ($weekStart, $appts) {
             $day = $weekStart->copy()->addDays($offset);
 
             return [
                 'label' => $day->format('D'),
-                'value' => Appointment::whereDate('date', $day->toDateString())->count(),
+                'value' => $appts()->whereDate('date', $day->toDateString())->count(),
             ];
         });
 
@@ -43,17 +50,22 @@ class DashboardController extends Controller
             ];
         })->values();
 
-        $todaysAppointments = Appointment::whereDate('date', $today)
-            ->orderBy('time')
-            ->get();
+        $todaysAppointments = $appts()->whereDate('date', $today)->orderBy('time')->get();
+
+        // "My patients" for a doctor, all patients otherwise.
+        $patientCount = $doctorId
+            ? Patient::whereHas('appointments', fn ($q) => $q->where('doctor_id', $doctorId))->count()
+            : Patient::count();
 
         return response()->json([
-            'totalPatients' => Patient::count(),
+            'scopedToDoctor' => (bool) $doctorId,
+            'totalPatients' => $patientCount,
             'admittedPatients' => Patient::where('status', 'Admitted')->count(),
             'todayAppointments' => $todaysAppointments->count(),
-            'totalAppointments' => Appointment::count(),
+            'totalAppointments' => $appts()->count(),
             'activeDoctors' => Doctor::where('availability', 'Available')->count(),
             'totalDoctors' => Doctor::count(),
+            'pendingRefills' => $rx()->where('refill_requested', true)->count(),
             'totalRevenue' => round((float) Invoice::sum('paid_amount'), 2),
             'pendingRevenue' => round((float) Invoice::selectRaw('coalesce(sum(amount - paid_amount), 0) as due')->value('due'), 2),
             'totalInvoices' => Invoice::count(),

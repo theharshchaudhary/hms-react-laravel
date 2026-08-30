@@ -14,11 +14,18 @@ class Prescription extends Model
         return [
             'date' => 'date:Y-m-d',
             'medications' => 'array',
+            'refill_requested' => 'boolean',
+            'refill_requested_at' => 'datetime',
         ];
     }
 
     public function patient(): BelongsTo
     {
         return $this->belongsTo(Patient::class);
+    }
+
+    public function doctor(): BelongsTo
+    {
+        return $this->belongsTo(Doctor::class);
     }
 }

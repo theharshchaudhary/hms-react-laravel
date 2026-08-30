@@ -1,7 +1,7 @@
 import {
   LayoutDashboard, Users, Stethoscope, Building2, CalendarDays,
   ListOrdered, Pill, FileText, Receipt, BarChart3, Settings,
-  HeartPulse, X, LogOut,
+  HeartPulse, X, LogOut, ShieldCheck, MessageSquare,
 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import type { UserRole } from '@/types';
@@ -14,18 +14,22 @@ interface NavItem {
   roles: UserRole[];
 }
 
+const ALL_STAFF: UserRole[] = ['super_admin', 'admin', 'doctor', 'receptionist'];
+
 const navItems: NavItem[] = [
-  { key: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, roles: ['admin', 'doctor', 'receptionist'] },
-  { key: 'patients', label: 'Patients', icon: Users, roles: ['admin', 'doctor', 'receptionist'] },
-  { key: 'doctors', label: 'Doctors', icon: Stethoscope, roles: ['admin', 'doctor'] },
-  { key: 'departments', label: 'Departments', icon: Building2, roles: ['admin', 'doctor', 'receptionist'] },
-  { key: 'appointments', label: 'Appointments', icon: CalendarDays, roles: ['admin', 'doctor', 'receptionist'] },
-  { key: 'queue', label: 'Queue Management', icon: ListOrdered, roles: ['admin', 'doctor', 'receptionist'] },
-  { key: 'prescriptions', label: 'Prescriptions', icon: Pill, roles: ['admin', 'doctor'] },
-  { key: 'records', label: 'Medical Records', icon: FileText, roles: ['admin', 'doctor'] },
-  { key: 'billing', label: 'Billing', icon: Receipt, roles: ['admin', 'receptionist'] },
-  { key: 'reports', label: 'Reports', icon: BarChart3, roles: ['admin'] },
-  { key: 'settings', label: 'Settings', icon: Settings, roles: ['admin', 'doctor', 'receptionist'] },
+  { key: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, roles: ALL_STAFF },
+  { key: 'patients', label: 'Patients', icon: Users, roles: ALL_STAFF },
+  { key: 'doctors', label: 'Doctors', icon: Stethoscope, roles: ['super_admin', 'admin', 'doctor'] },
+  { key: 'departments', label: 'Departments', icon: Building2, roles: ALL_STAFF },
+  { key: 'appointments', label: 'Appointments', icon: CalendarDays, roles: ALL_STAFF },
+  { key: 'queue', label: 'Queue Management', icon: ListOrdered, roles: ALL_STAFF },
+  { key: 'prescriptions', label: 'Prescriptions', icon: Pill, roles: ['super_admin', 'admin', 'doctor'] },
+  { key: 'records', label: 'Medical Records', icon: FileText, roles: ['super_admin', 'admin', 'doctor'] },
+  { key: 'billing', label: 'Billing', icon: Receipt, roles: ['super_admin', 'admin', 'receptionist'] },
+  { key: 'reports', label: 'Reports', icon: BarChart3, roles: ['super_admin', 'admin'] },
+  { key: 'messages', label: 'Messages', icon: MessageSquare, roles: ['super_admin', 'admin'] },
+  { key: 'users', label: 'User Management', icon: ShieldCheck, roles: ['super_admin'] },
+  { key: 'settings', label: 'Settings', icon: Settings, roles: ALL_STAFF },
 ];
 
 interface SidebarProps {

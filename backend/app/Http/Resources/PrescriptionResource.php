@@ -27,6 +27,8 @@ class PrescriptionResource extends JsonResource
             'diagnosis' => $this->diagnosis,
             'notes' => $this->notes,
             'status' => $this->status,
+            'refillRequested' => (bool) $this->refill_requested,
+            'refillRequestedAt' => optional($this->refill_requested_at)->toIso8601String(),
         ];
     }
 }

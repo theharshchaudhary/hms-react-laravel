@@ -1,16 +1,17 @@
 import { useState, useEffect } from 'react';
-import { HeartPulse, Mail, Lock, User, Eye, EyeOff, ArrowLeft, AlertCircle, Loader2, Building2, Stethoscope, ClipboardList } from 'lucide-react';
+import { HeartPulse, Mail, Lock, User, Phone, Eye, EyeOff, ArrowLeft, AlertCircle, Loader2, CheckCircle2 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
-import { navigate } from '@/router/Router';
-import type { UserRole } from '@/types';
+import { navigate, homePathForRole } from '@/router/Router';
 
 export function RegisterPage() {
   const { register, loading, error, clearError } = useAuth();
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
+  const [phone, setPhone] = useState('');
+  const [gender, setGender] = useState('');
+  const [age, setAge] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const [role, setRole] = useState<UserRole>('receptionist');
   const [showPassword, setShowPassword] = useState(false);
   const [localError, setLocalError] = useState<string | null>(null);
 
@@ -23,23 +24,22 @@ export function RegisterPage() {
       setLocalError('Passwords do not match');
       return;
     }
-    if (password.length < 6) {
-      setLocalError('Password must be at least 6 characters');
+    if (password.length < 8) {
+      setLocalError('Password must be at least 8 characters');
       return;
     }
     try {
-      await register(name, email, password, role);
-      navigate('/dashboard');
+      await register({
+        name, email, password,
+        phone: phone || undefined,
+        gender: gender || undefined,
+        age: age ? parseInt(age) : undefined,
+      });
+      navigate(homePathForRole('patient'));
     } catch {
       /* error handled by context */
     }
   };
-
-  const roleOptions: { value: UserRole; label: string; icon: typeof Building2; desc: string }[] = [
-    { value: 'admin', label: 'Admin', icon: Building2, desc: 'Full system access' },
-    { value: 'doctor', label: 'Doctor', icon: Stethoscope, desc: 'Patient care access' },
-    { value: 'receptionist', label: 'Receptionist', icon: ClipboardList, desc: 'Front desk access' },
-  ];
 
   const displayError = localError || error;
 
@@ -58,11 +58,23 @@ export function RegisterPage() {
         </div>
         <div className="relative">
           <h2 className="font-display text-4xl font-bold leading-tight text-white">
-            Join MediCore and transform your healthcare experience.
+            Create your patient account.
           </h2>
           <p className="mt-6 text-lg text-secondary-100">
-            Create your account to access powerful tools for managing patient care, appointments, and medical records.
+            Book appointments online, view your prescriptions and medical records, and manage your bills — all in one place.
           </p>
+          <div className="mt-12 space-y-4">
+            {[
+              'Book and reschedule appointments with our specialists',
+              'Access your prescriptions and request refills',
+              'View medical records and download invoices',
+            ].map((item, i) => (
+              <div key={i} className="flex items-center gap-3 text-secondary-100">
+                <CheckCircle2 className="h-5 w-5 shrink-0" />
+                <span className="text-sm">{item}</span>
+              </div>
+            ))}
+          </div>
         </div>
         <div className="relative text-sm text-secondary-200">
           © {new Date().getFullYear()} MediCore. All rights reserved.
@@ -77,7 +89,13 @@ export function RegisterPage() {
           </button>
 
           <h1 className="font-display text-3xl font-bold text-gray-900">Create your account</h1>
-          <p className="mt-2 text-sm text-gray-500">Get started with MediCore in just a few steps.</p>
+          <p className="mt-2 text-sm text-gray-500">
+            Register as a patient to book appointments and access your health records.
+          </p>
+
+          <div className="mt-4 rounded-lg border border-primary-100 bg-primary-50 px-4 py-3 text-xs text-primary-700">
+            Staff accounts (doctors, receptionists, administrators) are created by the hospital administrator, not here.
+          </div>
 
           {displayError && (
             <div className="mt-6 flex items-center gap-3 rounded-lg border border-error-200 bg-error-50 px-4 py-3 text-sm text-error-700 animate-fade-in">
@@ -91,14 +109,7 @@ export function RegisterPage() {
               <label className="mb-1.5 block text-sm font-medium text-gray-700">Full Name</label>
               <div className="relative">
                 <User className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-                <input
-                  type="text"
-                  required
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  className="input-field pl-10"
-                  placeholder="John Doe"
-                />
+                <input type="text" required value={name} onChange={(e) => setName(e.target.value)} className="input-field pl-10" placeholder="John Doe" />
               </div>
             </div>
 
@@ -106,36 +117,29 @@ export function RegisterPage() {
               <label className="mb-1.5 block text-sm font-medium text-gray-700">Email Address</label>
               <div className="relative">
                 <Mail className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-                <input
-                  type="email"
-                  required
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className="input-field pl-10"
-                  placeholder="you@medicore.com"
-                />
+                <input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} className="input-field pl-10" placeholder="you@email.com" />
               </div>
             </div>
 
             <div>
-              <label className="mb-1.5 block text-sm font-medium text-gray-700">Select Your Role</label>
-              <div className="grid grid-cols-3 gap-2">
-                {roleOptions.map((opt) => (
-                  <button
-                    key={opt.value}
-                    type="button"
-                    onClick={() => setRole(opt.value)}
-                    className={`flex flex-col items-center gap-1.5 rounded-xl border p-3 transition-all ${
-                      role === opt.value
-                        ? 'border-primary-500 bg-primary-50 text-primary-700'
-                        : 'border-gray-200 bg-white text-gray-600 hover:border-gray-300'
-                    }`}
-                  >
-                    <opt.icon className="h-5 w-5" />
-                    <span className="text-xs font-semibold">{opt.label}</span>
-                    <span className="text-[10px] text-gray-400">{opt.desc}</span>
-                  </button>
-                ))}
+              <label className="mb-1.5 block text-sm font-medium text-gray-700">Phone <span className="text-gray-400">(optional)</span></label>
+              <div className="relative">
+                <Phone className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+                <input type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} className="input-field pl-10" placeholder="+1 555 000 0000" />
+              </div>
+            </div>
+
+            <div className="grid gap-5 sm:grid-cols-2">
+              <div>
+                <label className="mb-1.5 block text-sm font-medium text-gray-700">Gender <span className="text-gray-400">(optional)</span></label>
+                <select value={gender} onChange={(e) => setGender(e.target.value)} className="input-field">
+                  <option value="">Prefer not to say</option>
+                  <option>Male</option><option>Female</option><option>Other</option>
+                </select>
+              </div>
+              <div>
+                <label className="mb-1.5 block text-sm font-medium text-gray-700">Age <span className="text-gray-400">(optional)</span></label>
+                <input type="number" min={0} max={150} value={age} onChange={(e) => setAge(e.target.value)} className="input-field" />
               </div>
             </div>
 
@@ -144,19 +148,8 @@ export function RegisterPage() {
                 <label className="mb-1.5 block text-sm font-medium text-gray-700">Password</label>
                 <div className="relative">
                   <Lock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-                  <input
-                    type={showPassword ? 'text' : 'password'}
-                    required
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    className="input-field px-10"
-                    placeholder="••••••••"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 transition-colors hover:text-gray-600"
-                  >
+                  <input type={showPassword ? 'text' : 'password'} required value={password} onChange={(e) => setPassword(e.target.value)} className="input-field px-10" placeholder="••••••••" />
+                  <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 transition-colors hover:text-gray-600">
                     {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                   </button>
                 </div>
@@ -165,14 +158,7 @@ export function RegisterPage() {
                 <label className="mb-1.5 block text-sm font-medium text-gray-700">Confirm</label>
                 <div className="relative">
                   <Lock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-                  <input
-                    type={showPassword ? 'text' : 'password'}
-                    required
-                    value={confirmPassword}
-                    onChange={(e) => setConfirmPassword(e.target.value)}
-                    className="input-field px-10"
-                    placeholder="••••••••"
-                  />
+                  <input type={showPassword ? 'text' : 'password'} required value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} className="input-field px-10" placeholder="••••••••" />
                 </div>
               </div>
             </div>

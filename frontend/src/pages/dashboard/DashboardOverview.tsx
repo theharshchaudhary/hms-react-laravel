@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Users, CalendarDays, Stethoscope, Receipt, Activity, Clock, TrendingUp, AlertCircle } from 'lucide-react';
+import { Users, CalendarDays, Stethoscope, Receipt, Activity, Clock, TrendingUp, AlertCircle, RefreshCw } from 'lucide-react';
 import { StatCard } from '@/components/ui/StatCard';
 import { SectionLoader, ErrorState } from '@/components/ui/SectionLoader';
 import { BarChart, DonutChart, LineChart } from '@/components/dashboard/Chart';
@@ -42,7 +42,8 @@ export function DashboardOverview() {
     color: STATUS_COLORS[s.label] || '#3399ff',
   }));
 
-  const roleGreeting = {
+  const roleGreeting: Record<string, string> = {
+    super_admin: 'Super Admin Console',
     admin: 'Administrator Dashboard',
     doctor: 'Doctor Dashboard',
     receptionist: 'Reception Desk',
@@ -54,7 +55,7 @@ export function DashboardOverview() {
         <div className="flex items-center justify-between">
           <div>
             <h2 className="font-display text-xl font-bold">Welcome back, {user?.name}</h2>
-            <p className="mt-1 text-sm text-primary-100">{roleGreeting[user?.role || 'admin']} · {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}</p>
+            <p className="mt-1 text-sm text-primary-100">{roleGreeting[user?.role || 'admin'] || 'Dashboard'} · {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}</p>
           </div>
           <div className="hidden h-14 w-14 items-center justify-center rounded-2xl bg-white/20 backdrop-blur-sm sm:flex">
             <Activity className="h-7 w-7" />
@@ -63,10 +64,14 @@ export function DashboardOverview() {
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <StatCard label="Total Patients" value={data.totalPatients} icon={Users} color="primary" />
-        <StatCard label="Today's Appointments" value={data.todayAppointments} icon={CalendarDays} color="secondary" />
-        <StatCard label="Active Doctors" value={data.activeDoctors} icon={Stethoscope} color="accent" subtitle={`${data.totalDoctors} total`} />
-        <StatCard label="Revenue (Paid)" value={`$${data.totalRevenue.toLocaleString()}`} icon={Receipt} color="success" />
+        <StatCard label={data.scopedToDoctor ? 'My Patients' : 'Total Patients'} value={data.totalPatients} icon={Users} color="primary" />
+        <StatCard label={data.scopedToDoctor ? 'My Appointments Today' : "Today's Appointments"} value={data.todayAppointments} icon={CalendarDays} color="secondary" />
+        {data.scopedToDoctor
+          ? <StatCard label="Refill Requests" value={data.pendingRefills} icon={RefreshCw} color={data.pendingRefills ? 'warning' : 'success'} />
+          : <StatCard label="Active Doctors" value={data.activeDoctors} icon={Stethoscope} color="accent" subtitle={`${data.totalDoctors} total`} />}
+        {data.scopedToDoctor
+          ? <StatCard label="Total Appointments" value={data.totalAppointments} icon={CalendarDays} color="success" />
+          : <StatCard label="Revenue (Paid)" value={`$${data.totalRevenue.toLocaleString()}`} icon={Receipt} color="success" />}
       </div>
 
       <div className="grid gap-6 lg:grid-cols-3">

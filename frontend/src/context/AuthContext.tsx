@@ -1,14 +1,23 @@
 import { createContext, useContext, useState, useCallback, useEffect, type ReactNode } from 'react';
 import { authApi, getToken, setToken } from '@/services/api';
-import type { User, UserRole } from '@/types';
+import type { User } from '@/types';
+
+export interface RegisterInput {
+  name: string;
+  email: string;
+  password: string;
+  phone?: string;
+  gender?: string;
+  age?: number;
+}
 
 interface AuthContextValue {
   user: User | null;
   loading: boolean;
   bootstrapping: boolean;
   error: string | null;
-  login: (email: string, password: string) => Promise<void>;
-  register: (name: string, email: string, password: string, role: UserRole) => Promise<void>;
+  login: (email: string, password: string) => Promise<User>;
+  register: (input: RegisterInput) => Promise<User>;
   logout: () => void;
   refreshUser: () => Promise<void>;
   setUser: (user: User) => void;
@@ -63,6 +72,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       const u = await authApi.login(email, password);
       applyUser(u);
+      return u;
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Login failed');
       throw err;
@@ -71,12 +81,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [applyUser]);
 
-  const register = useCallback(async (name: string, email: string, password: string, role: UserRole) => {
+  const register = useCallback(async ({ name, email, password, phone, gender, age }: RegisterInput) => {
     setLoading(true);
     setError(null);
     try {
-      const u = await authApi.register(name, email, password, role);
+      const u = await authApi.register(name, email, password, {
+        ...(phone ? { phone } : {}),
+        ...(gender ? { gender } : {}),
+        ...(age ? { age } : {}),
+      });
       applyUser(u);
+      return u;
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Registration failed');
       throw err;

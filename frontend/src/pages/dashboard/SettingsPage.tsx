@@ -1,13 +1,39 @@
 import { useState } from 'react';
-import { User, Bell, Shield, Palette, Save, Loader2, AlertCircle } from 'lucide-react';
+import { User, Bell, Shield, Palette, Save, Loader2, AlertCircle, Check } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { Avatar } from '@/components/ui/Avatar';
 import { Badge } from '@/components/ui/Badge';
 import { authApi, ApiError } from '@/services/api';
 
+function usePersisted<T>(key: string, initial: T): [T, (v: T) => void] {
+  const [value, setValue] = useState<T>(() => {
+    try { const s = localStorage.getItem(key); return s ? (JSON.parse(s) as T) : initial; } catch { return initial; }
+  });
+  const set = (v: T) => {
+    setValue(v);
+    try { localStorage.setItem(key, JSON.stringify(v)); } catch { /* ignore */ }
+  };
+  return [value, set];
+}
+
+const NOTIFICATION_ITEMS = [
+  { key: 'appointments', label: 'New appointment bookings', desc: 'Get notified when a patient books an appointment' },
+  { key: 'queue', label: 'Queue updates', desc: 'Receive alerts when patients are called or skip' },
+  { key: 'critical', label: 'Critical patient alerts', desc: 'Immediate notifications for critical patient status' },
+  { key: 'billing', label: 'Billing reminders', desc: 'Notifications for overdue invoices' },
+  { key: 'summary', label: 'Daily summary', desc: 'A daily digest of all activities' },
+];
+
 export function SettingsPage() {
   const { user, setUser } = useAuth();
   const [activeTab, setActiveTab] = useState('profile');
+
+  const nsKey = `medicore_settings_${user?.id || 'anon'}`;
+  const [notifications, setNotifications] = usePersisted<Record<string, boolean>>(`${nsKey}_notifications`,
+    { appointments: true, queue: true, critical: true, billing: false, summary: false });
+  const [prefs, setPrefs] = usePersisted(`${nsKey}_prefs`,
+    { language: 'English', timezone: 'UTC+00:00 GMT', dateFormat: 'YYYY-MM-DD', theme: 'System Default' });
+  const [prefsSaved, setPrefsSaved] = useState(false);
 
   const tabs = [
     { key: 'profile', label: 'Profile', icon: User },
@@ -44,6 +70,10 @@ export function SettingsPage() {
   const savePassword = async () => {
     if (pw.password !== pw.confirm) {
       setPwState({ saving: false, ok: false, error: 'New passwords do not match' });
+      return;
+    }
+    if (pw.password.length < 8) {
+      setPwState({ saving: false, ok: false, error: 'Password must be at least 8 characters' });
       return;
     }
     setPwState({ saving: true, ok: false, error: null });
@@ -119,23 +149,19 @@ export function SettingsPage() {
           <h3 className="text-base font-semibold text-gray-900">Notification Preferences</h3>
           <p className="text-sm text-gray-500">Choose what notifications you receive</p>
           <div className="mt-6 space-y-4">
-            {[
-              { label: 'New appointment bookings', desc: 'Get notified when a patient books an appointment', defaultChecked: true },
-              { label: 'Queue updates', desc: 'Receive alerts when patients are called or skip', defaultChecked: true },
-              { label: 'Critical patient alerts', desc: 'Immediate notifications for critical patient status', defaultChecked: true },
-              { label: 'Billing reminders', desc: 'Notifications for overdue invoices', defaultChecked: false },
-              { label: 'Daily summary', desc: 'A daily digest of all activities', defaultChecked: false },
-            ].map((item, i) => (
-              <div key={i} className="flex items-center justify-between rounded-lg border border-gray-200 p-4">
+            {NOTIFICATION_ITEMS.map((item) => (
+              <div key={item.key} className="flex items-center justify-between rounded-lg border border-gray-200 p-4">
                 <div><p className="text-sm font-medium text-gray-900">{item.label}</p><p className="text-xs text-gray-500">{item.desc}</p></div>
                 <label className="relative inline-flex cursor-pointer items-center">
-                  <input type="checkbox" defaultChecked={item.defaultChecked} className="peer sr-only" />
+                  <input type="checkbox" checked={!!notifications[item.key]}
+                    onChange={(e) => setNotifications({ ...notifications, [item.key]: e.target.checked })} className="peer sr-only" />
                   <div className="h-6 w-11 rounded-full bg-gray-200 transition-colors peer-checked:bg-primary-600 peer-focus:ring-2 peer-focus:ring-primary-500/20" />
                   <div className="absolute left-0.5 top-0.5 h-5 w-5 rounded-full bg-white transition-transform peer-checked:translate-x-5" />
                 </label>
               </div>
             ))}
           </div>
+          <p className="mt-4 flex items-center gap-1.5 text-xs text-success-600"><Check className="h-3.5 w-3.5" />Preferences are saved automatically on this device.</p>
         </div>
       )}
 
@@ -145,7 +171,7 @@ export function SettingsPage() {
           <p className="text-sm text-gray-500">Manage your password</p>
           <div className="mt-6 space-y-4">
             <Field label="Current Password"><input className="input-field" type="password" value={pw.current_password} onChange={(e) => setPw({ ...pw, current_password: e.target.value })} /></Field>
-            <Field label="New Password"><input className="input-field" type="password" value={pw.password} onChange={(e) => setPw({ ...pw, password: e.target.value })} /></Field>
+            <Field label="New Password (min 8 characters)"><input className="input-field" type="password" value={pw.password} onChange={(e) => setPw({ ...pw, password: e.target.value })} /></Field>
             <Field label="Confirm New Password"><input className="input-field" type="password" value={pw.confirm} onChange={(e) => setPw({ ...pw, confirm: e.target.value })} /></Field>
           </div>
           {pwState.error && (
@@ -165,11 +191,28 @@ export function SettingsPage() {
           <h3 className="text-base font-semibold text-gray-900">System Preferences</h3>
           <p className="text-sm text-gray-500">Customize your experience</p>
           <div className="mt-6 grid gap-4 sm:grid-cols-2">
-            <Field label="Language"><select className="input-field"><option>English</option><option>Spanish</option><option>French</option><option>German</option></select></Field>
-            <Field label="Timezone"><select className="input-field"><option>UTC-08:00 Pacific</option><option>UTC-05:00 Eastern</option><option>UTC+00:00 GMT</option><option>UTC+01:00 Central European</option></select></Field>
-            <Field label="Date Format"><select className="input-field"><option>MM/DD/YYYY</option><option>DD/MM/YYYY</option><option>YYYY-MM-DD</option></select></Field>
-            <Field label="Theme"><select className="input-field"><option>Light</option><option>Dark</option><option>System Default</option></select></Field>
+            <Field label="Language">
+              <select className="input-field" value={prefs.language} onChange={(e) => { setPrefs({ ...prefs, language: e.target.value }); setPrefsSaved(true); setTimeout(() => setPrefsSaved(false), 2000); }}>
+                {['English', 'Spanish', 'French', 'German'].map((o) => <option key={o}>{o}</option>)}
+              </select>
+            </Field>
+            <Field label="Timezone">
+              <select className="input-field" value={prefs.timezone} onChange={(e) => { setPrefs({ ...prefs, timezone: e.target.value }); setPrefsSaved(true); setTimeout(() => setPrefsSaved(false), 2000); }}>
+                {['UTC-08:00 Pacific', 'UTC-05:00 Eastern', 'UTC+00:00 GMT', 'UTC+01:00 Central European'].map((o) => <option key={o}>{o}</option>)}
+              </select>
+            </Field>
+            <Field label="Date Format">
+              <select className="input-field" value={prefs.dateFormat} onChange={(e) => { setPrefs({ ...prefs, dateFormat: e.target.value }); setPrefsSaved(true); setTimeout(() => setPrefsSaved(false), 2000); }}>
+                {['MM/DD/YYYY', 'DD/MM/YYYY', 'YYYY-MM-DD'].map((o) => <option key={o}>{o}</option>)}
+              </select>
+            </Field>
+            <Field label="Theme">
+              <select className="input-field" value={prefs.theme} onChange={(e) => { setPrefs({ ...prefs, theme: e.target.value }); setPrefsSaved(true); setTimeout(() => setPrefsSaved(false), 2000); }}>
+                {['Light', 'Dark', 'System Default'].map((o) => <option key={o}>{o}</option>)}
+              </select>
+            </Field>
           </div>
+          {prefsSaved && <p className="mt-4 flex items-center gap-1.5 text-xs text-success-600"><Check className="h-3.5 w-3.5" />Saved on this device.</p>}
         </div>
       )}
     </div>

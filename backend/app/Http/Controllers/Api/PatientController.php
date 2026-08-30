@@ -2,17 +2,30 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Http\Controllers\Concerns\ScopesToDoctor;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\PatientResource;
 use App\Models\Patient;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 
 class PatientController extends Controller
 {
+    use ScopesToDoctor;
+
     public function index(Request $request)
     {
         $query = Patient::query()->latest('id');
+
+        // A doctor login only sees patients they have a relationship with.
+        if ($doctorId = $this->currentDoctorId($request)) {
+            $query->where(function ($q) use ($doctorId) {
+                $q->whereHas('appointments', fn ($a) => $a->where('doctor_id', $doctorId))
+                    ->orWhereHas('prescriptions', fn ($p) => $p->where('doctor_id', $doctorId))
+                    ->orWhereHas('medicalRecords', fn ($m) => $m->where('doctor_id', $doctorId));
+            });
+        }
 
         if ($search = $request->query('search')) {
             $query->where(function ($q) use ($search) {
@@ -47,14 +60,32 @@ class PatientController extends Controller
 
     public function update(Request $request, Patient $patient)
     {
-        $patient->update($this->validateData($request, $patient));
+        $data = $this->validateData($request, $patient);
+
+        // Clearing the admitting department when discharged.
+        if (($data['status'] ?? $patient->status) !== 'Admitted') {
+            $data['department'] = null;
+        }
+
+        $patient->update($data);
+
+        // Keep the linked portal login's email in sync.
+        if ($patient->user && array_key_exists('email', $data) && $data['email']) {
+            $patient->user->update(['email' => $data['email']]);
+        }
 
         return new PatientResource($patient->fresh());
     }
 
     public function destroy(Patient $patient)
     {
-        $patient->delete();
+        DB::transaction(function () use ($patient) {
+            if ($user = $patient->user) {
+                $user->tokens()->delete();
+                $user->delete();
+            }
+            $patient->delete();
+        });
 
         return response()->noContent();
     }
@@ -67,7 +98,7 @@ class PatientController extends Controller
         $rules = [
             'patientCode' => ['nullable', 'string', 'max:40', Rule::unique('patients', 'patient_code')->ignore($patient?->id)],
             'name' => [$patient ? 'sometimes' : 'required', 'string', 'max:255'],
-            'email' => ['nullable', 'email', 'max:255'],
+            'email' => ['nullable', 'email', 'max:255', Rule::unique('users', 'email')->ignore($patient?->user?->id)],
             'phone' => ['nullable', 'string', 'max:40'],
             'gender' => ['nullable', Rule::in(['Male', 'Female', 'Other'])],
             'age' => ['nullable', 'integer', 'min:0', 'max:150'],
@@ -75,6 +106,7 @@ class PatientController extends Controller
             'address' => ['nullable', 'string', 'max:500'],
             'emergencyContact' => ['nullable', 'string', 'max:40'],
             'status' => ['nullable', Rule::in(['Active', 'Inactive', 'Admitted'])],
+            'department' => ['nullable', 'string', 'max:120'],
             'registeredDate' => ['nullable', 'date'],
             'lastVisit' => ['nullable', 'date'],
         ];

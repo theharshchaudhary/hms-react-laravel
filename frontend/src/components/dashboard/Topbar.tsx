@@ -1,8 +1,9 @@
 import { useState } from 'react';
-import { Menu, Search, Bell, ChevronDown } from 'lucide-react';
+import { Menu, Search, ChevronDown } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { Avatar } from '@/components/ui/Avatar';
 import { navigate } from '@/router/Router';
+import { setPatientSearch } from '@/lib/handoff';
 
 interface TopbarProps {
   title: string;
@@ -10,16 +11,27 @@ interface TopbarProps {
 }
 
 const roleLabels: Record<string, string> = {
+  super_admin: 'Super Admin',
   admin: 'Administrator',
   doctor: 'Doctor',
   receptionist: 'Receptionist',
+  patient: 'Patient',
 };
 
 export function Topbar({ title, onOpenMobile }: TopbarProps) {
   const { user, logout } = useAuth();
   const [menuOpen, setMenuOpen] = useState(false);
+  const [query, setQuery] = useState('');
 
   if (!user) return null;
+
+  const runSearch = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!query.trim()) return;
+    setPatientSearch(query.trim());
+    navigate('/dashboard/patients');
+    setQuery('');
+  };
 
   return (
     <header className="sticky top-0 z-20 flex h-16 items-center justify-between border-b border-gray-200 bg-white/80 px-4 backdrop-blur-md sm:px-6">
@@ -34,22 +46,16 @@ export function Topbar({ title, onOpenMobile }: TopbarProps) {
       </div>
 
       <div className="flex items-center gap-3">
-        <div className="relative hidden sm:block">
+        <form onSubmit={runSearch} className="relative hidden sm:block">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
           <input
             type="text"
-            placeholder="Search..."
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Search patients..."
             className="w-48 rounded-lg border border-gray-200 bg-gray-50 py-2 pl-9 pr-3 text-sm text-gray-700 placeholder-gray-400 transition-all focus:border-primary-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-primary-500/20 lg:w-64"
           />
-        </div>
-
-        <button className="relative rounded-lg p-2 text-gray-500 transition-colors hover:bg-gray-100">
-          <Bell className="h-5 w-5" />
-          <span className="absolute right-1.5 top-1.5 flex h-2 w-2">
-            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-error-400 opacity-75" />
-            <span className="relative inline-flex h-2 w-2 rounded-full bg-error-500" />
-          </span>
-        </button>
+        </form>
 
         <div className="relative">
           <button

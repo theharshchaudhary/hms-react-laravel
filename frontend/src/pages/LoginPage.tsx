@@ -1,7 +1,15 @@
 import { useState, useEffect } from 'react';
 import { HeartPulse, Mail, Lock, Eye, EyeOff, ArrowLeft, AlertCircle, Loader2 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
-import { navigate } from '@/router/Router';
+import { navigate, homePathForRole } from '@/router/Router';
+
+const DEMO_ACCOUNTS = [
+  { key: 'patient', label: 'Patient', email: 'patient@medicore.com', password: 'patient123' },
+  { key: 'reception', label: 'Reception', email: 'reception@medicore.com', password: 'reception123' },
+  { key: 'doctor', label: 'Doctor', email: 'doctor@medicore.com', password: 'doctor123' },
+  { key: 'admin', label: 'Admin', email: 'admin@medicore.com', password: 'admin123' },
+  { key: 'super', label: 'Super Admin', email: 'super@medicore.com', password: 'super123' },
+] as const;
 
 export function LoginPage() {
   const { login, loading, error, clearError } = useAuth();
@@ -14,21 +22,16 @@ export function LoginPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      await login(email, password);
-      navigate('/dashboard');
+      const me = await login(email, password);
+      navigate(homePathForRole(me.role));
     } catch {
       /* error handled by context */
     }
   };
 
-  const fillDemo = (role: 'admin' | 'doctor' | 'receptionist') => {
-    const creds = {
-      admin: { email: 'admin@medicore.com', password: 'admin123' },
-      doctor: { email: 'doctor@medicore.com', password: 'doctor123' },
-      receptionist: { email: 'reception@medicore.com', password: 'reception123' },
-    };
-    setEmail(creds[role].email);
-    setPassword(creds[role].password);
+  const fillDemo = (email: string, password: string) => {
+    setEmail(email);
+    setPassword(password);
   };
 
   return (
@@ -154,13 +157,13 @@ export function LoginPage() {
               </div>
             </div>
             <div className="mt-4 grid grid-cols-3 gap-2">
-              {(['admin', 'doctor', 'receptionist'] as const).map((role) => (
+              {DEMO_ACCOUNTS.map((acc) => (
                 <button
-                  key={role}
-                  onClick={() => fillDemo(role)}
-                  className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-xs font-medium capitalize text-gray-600 transition-all hover:border-primary-300 hover:bg-primary-50 hover:text-primary-700"
+                  key={acc.key}
+                  onClick={() => fillDemo(acc.email, acc.password)}
+                  className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-xs font-medium text-gray-600 transition-all hover:border-primary-300 hover:bg-primary-50 hover:text-primary-700"
                 >
-                  {role}
+                  {acc.label}
                 </button>
               ))}
             </div>

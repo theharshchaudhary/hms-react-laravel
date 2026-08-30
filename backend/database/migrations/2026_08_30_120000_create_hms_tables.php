@@ -34,6 +34,8 @@ return new class extends Migration
             $table->string('address')->nullable();
             $table->string('emergency_contact')->nullable();
             $table->enum('status', ['Active', 'Inactive', 'Admitted'])->default('Active');
+            // Admitting department (set when status becomes "Admitted").
+            $table->string('department')->nullable();
             $table->date('registered_date');
             $table->date('last_visit')->nullable();
             $table->timestamps();
@@ -82,6 +84,8 @@ return new class extends Migration
             $table->id();
             $table->unsignedInteger('token_number');
             $table->foreignId('patient_id')->nullable()->constrained()->nullOnDelete();
+            $table->foreignId('doctor_id')->nullable()->constrained()->nullOnDelete();
+            $table->foreignId('appointment_id')->nullable()->constrained()->nullOnDelete();
             $table->string('patient_name');
             $table->string('doctor_name')->nullable();
             $table->string('department')->nullable();
@@ -95,6 +99,7 @@ return new class extends Migration
         Schema::create('prescriptions', function (Blueprint $table) {
             $table->id();
             $table->foreignId('patient_id')->nullable()->constrained()->nullOnDelete();
+            $table->foreignId('doctor_id')->nullable()->constrained()->nullOnDelete();
             $table->string('patient_name');
             $table->string('doctor_name');
             $table->date('date');
@@ -102,12 +107,15 @@ return new class extends Migration
             $table->string('diagnosis')->nullable();
             $table->text('notes')->nullable();
             $table->enum('status', ['Active', 'Completed', 'Expired'])->default('Active');
+            $table->boolean('refill_requested')->default(false);
+            $table->timestamp('refill_requested_at')->nullable();
             $table->timestamps();
         });
 
         Schema::create('medical_records', function (Blueprint $table) {
             $table->id();
             $table->foreignId('patient_id')->nullable()->constrained()->nullOnDelete();
+            $table->foreignId('doctor_id')->nullable()->constrained()->nullOnDelete();
             $table->string('patient_name');
             $table->string('doctor_name');
             $table->date('date');
@@ -162,10 +170,21 @@ return new class extends Migration
             $table->boolean('handled')->default(false);
             $table->timestamps();
         });
+
+        // Now that "patients" / "doctors" exist, wire the users foreign keys.
+        Schema::table('users', function (Blueprint $table) {
+            $table->foreign('patient_id')->references('id')->on('patients')->nullOnDelete();
+            $table->foreign('doctor_id')->references('id')->on('doctors')->nullOnDelete();
+        });
     }
 
     public function down(): void
     {
+        Schema::table('users', function (Blueprint $table) {
+            $table->dropForeign(['patient_id']);
+            $table->dropForeign(['doctor_id']);
+        });
+
         Schema::dropIfExists('contact_messages');
         Schema::dropIfExists('facilities');
         Schema::dropIfExists('testimonials');

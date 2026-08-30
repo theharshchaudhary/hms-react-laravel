@@ -17,9 +17,11 @@ class DepartmentResource extends JsonResource
             'name' => $this->name,
             'head' => $this->head,
             'description' => $this->description,
-            'totalDoctors' => (int) $this->total_doctors,
+            // Derived from live data; total_beds stays the stored capacity.
+            'totalDoctors' => (int) \App\Models\Doctor::where('department', $this->name)->count(),
             'totalBeds' => (int) $this->total_beds,
-            'occupiedBeds' => (int) $this->occupied_beds,
+            'occupiedBeds' => (int) \App\Models\Patient::where('department', $this->name)
+                ->where('status', 'Admitted')->count(),
             'location' => $this->location,
             'phone' => $this->phone,
             'icon' => $this->icon,

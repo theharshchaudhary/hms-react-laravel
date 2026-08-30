@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react';
-import { BarChart3, Download, TrendingUp, CalendarDays, Receipt, Stethoscope, Activity, Users } from 'lucide-react';
+import { BarChart3, Download, TrendingUp, CalendarDays, Receipt, Stethoscope, Activity, Users, Loader2 } from 'lucide-react';
 import { BarChart, DonutChart, LineChart } from '@/components/dashboard/Chart';
 import { StatCard } from '@/components/ui/StatCard';
 import { SectionLoader, ErrorState } from '@/components/ui/SectionLoader';
-import { analyticsApi, type ReportsSummary } from '@/services/api';
+import { analyticsApi, type ReportsSummary, type ReportType } from '@/services/api';
 
 const STATUS_COLORS: Record<string, string> = {
   Completed: '#22c55e', Scheduled: '#3399ff', Confirmed: '#1463e1',
@@ -15,6 +15,8 @@ export function ReportsPage() {
   const [error, setError] = useState(false);
   const [data, setData] = useState<ReportsSummary | null>(null);
 
+  const [downloading, setDownloading] = useState<ReportType | null>(null);
+
   const load = () => {
     setLoading(true);
     setError(false);
@@ -23,18 +25,24 @@ export function ReportsPage() {
 
   useEffect(() => { load(); }, []);
 
+  const downloadReport = async (type: ReportType) => {
+    setDownloading(type);
+    try { await analyticsApi.downloadReport(type); }
+    finally { setDownloading(null); }
+  };
+
   if (loading) return <SectionLoader label="Loading reports..." />;
   if (error || !data) return <ErrorState message="Failed to load reports" onRetry={load} />;
 
   const statusData = data.appointmentStatus.map((s) => ({ ...s, color: STATUS_COLORS[s.label] || '#3399ff' }));
 
-  const reportCards = [
-    { title: 'Patient Demographics Report', desc: 'Age, gender, and blood group distribution', icon: Users, colorClass: 'bg-primary-50 text-primary-600' },
-    { title: 'Appointment Analytics', desc: 'Booking trends and no-show analysis', icon: CalendarDays, colorClass: 'bg-secondary-50 text-secondary-600' },
-    { title: 'Revenue Report', desc: 'Monthly revenue and outstanding balances', icon: Receipt, colorClass: 'bg-success-50 text-success-600' },
-    { title: 'Doctor Performance', desc: 'Patient ratings and consultation metrics', icon: Stethoscope, colorClass: 'bg-accent-50 text-accent-600' },
-    { title: 'Department Utilization', desc: 'Bed occupancy and resource allocation', icon: Activity, colorClass: 'bg-warning-50 text-warning-600' },
-    { title: 'Prescription Trends', desc: 'Medication patterns and frequency', icon: BarChart3, colorClass: 'bg-error-50 text-error-600' },
+  const reportCards: { title: string; desc: string; icon: typeof Users; colorClass: string; type: ReportType }[] = [
+    { title: 'Patient Demographics Report', desc: 'Age, gender, and blood group distribution', icon: Users, colorClass: 'bg-primary-50 text-primary-600', type: 'demographics' },
+    { title: 'Appointment Analytics', desc: 'Booking trends and no-show analysis', icon: CalendarDays, colorClass: 'bg-secondary-50 text-secondary-600', type: 'appointments' },
+    { title: 'Revenue Report', desc: 'Monthly revenue and outstanding balances', icon: Receipt, colorClass: 'bg-success-50 text-success-600', type: 'revenue' },
+    { title: 'Doctor Performance', desc: 'Patient volume and consultation metrics', icon: Stethoscope, colorClass: 'bg-accent-50 text-accent-600', type: 'doctors' },
+    { title: 'Department Utilization', desc: 'Bed occupancy and resource allocation', icon: Activity, colorClass: 'bg-warning-50 text-warning-600', type: 'departments' },
+    { title: 'Prescription Trends', desc: 'Medication patterns and frequency', icon: BarChart3, colorClass: 'bg-error-50 text-error-600', type: 'prescriptions' },
   ];
 
   return (
@@ -78,7 +86,9 @@ export function ReportsPage() {
                 <div className={`flex h-10 w-10 items-center justify-center rounded-lg ${report.colorClass}`}><report.icon className="h-5 w-5" /></div>
                 <div className="min-w-0"><p className="text-sm font-semibold text-gray-900">{report.title}</p><p className="text-xs text-gray-500">{report.desc}</p></div>
               </div>
-              <button className="btn-secondary mt-4 w-full text-xs"><Download className="h-3.5 w-3.5" />Download PDF</button>
+              <button className="btn-secondary mt-4 w-full text-xs" disabled={downloading === report.type} onClick={() => downloadReport(report.type)}>
+                {downloading === report.type ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Download className="h-3.5 w-3.5" />}Download PDF
+              </button>
             </div>
           ))}
         </div>

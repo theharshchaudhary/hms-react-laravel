@@ -23,7 +23,9 @@ class DoctorResource extends JsonResource
             'qualification' => $this->qualification,
             'availability' => $this->availability,
             'rating' => (float) $this->rating,
-            'totalPatients' => (int) $this->total_patients,
+            // Derived: distinct patients this doctor has seen.
+            'totalPatients' => (int) \App\Models\Appointment::where('doctor_id', $this->id)
+                ->whereNotNull('patient_id')->distinct()->count('patient_id'),
             'avatar' => $this->avatar,
             'bio' => $this->bio,
         ];

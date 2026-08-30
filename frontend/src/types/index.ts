@@ -1,4 +1,7 @@
-export type UserRole = 'admin' | 'doctor' | 'receptionist';
+export type UserRole = 'super_admin' | 'admin' | 'doctor' | 'receptionist' | 'patient';
+export type StaffRole = Exclude<UserRole, 'patient'>;
+
+export const STAFF_ROLES: StaffRole[] = ['super_admin', 'admin', 'doctor', 'receptionist'];
 
 export interface User {
   id: string;
@@ -8,6 +11,10 @@ export interface User {
   avatar?: string;
   phone?: string;
   department?: string;
+  patientId?: string | null;
+  doctorId?: string | null;
+  doctorName?: string | null;
+  createdAt?: string;
 }
 
 export interface Patient {
@@ -22,6 +29,7 @@ export interface Patient {
   address: string;
   emergencyContact: string;
   status: 'Active' | 'Inactive' | 'Admitted';
+  department?: string | null;
   registeredDate: string;
   lastVisit?: string;
 }
@@ -81,6 +89,8 @@ export interface QueueEntry {
   tokenNumber: number;
   patientName: string;
   patientId: string;
+  doctorId?: string;
+  appointmentId?: string | null;
   doctorName: string;
   department: string;
   priority: QueuePriority;
@@ -99,6 +109,8 @@ export interface Prescription {
   diagnosis: string;
   notes?: string;
   status: 'Active' | 'Completed' | 'Expired';
+  refillRequested?: boolean;
+  refillRequestedAt?: string | null;
 }
 
 export interface MedicalRecord {
@@ -145,4 +157,14 @@ export interface Facility {
   name: string;
   description: string;
   icon: string;
+}
+
+export interface ContactMessage {
+  id: string;
+  name: string;
+  email: string;
+  phone?: string;
+  message: string;
+  handled: boolean;
+  receivedAt: string;
 }

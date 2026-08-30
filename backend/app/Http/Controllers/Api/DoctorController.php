@@ -26,6 +26,11 @@ class DoctorController extends Controller
             $query->where('availability', $availability);
         }
 
+        // Doctor profiles not yet linked to a staff login (for the User Management picker).
+        if ($request->boolean('unlinked')) {
+            $query->whereDoesntHave('user');
+        }
+
         return DoctorResource::collection($query->get());
     }
 
@@ -70,13 +75,11 @@ class DoctorController extends Controller
             'qualification' => ['nullable', 'string', 'max:255'],
             'availability' => ['nullable', Rule::in(['Available', 'On Leave', 'Busy'])],
             'rating' => ['nullable', 'numeric', 'min:0', 'max:5'],
-            'totalPatients' => ['nullable', 'integer', 'min:0'],
             'avatar' => ['nullable', 'string', 'max:255'],
             'bio' => ['nullable', 'string', 'max:2000'],
         ]);
 
-        return collect($validated)->mapWithKeys(fn ($value, $key) => [
-            $key === 'totalPatients' ? 'total_patients' : $key => $value,
-        ])->all();
+        // total_patients is derived (see DoctorResource) — not client-settable.
+        return $validated;
     }
 }

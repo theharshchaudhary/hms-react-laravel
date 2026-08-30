@@ -3,6 +3,7 @@
 namespace Database\Seeders;
 
 use App\Models\Appointment;
+use App\Models\ContactMessage;
 use App\Models\Department;
 use App\Models\Doctor;
 use App\Models\Facility;
@@ -20,30 +21,100 @@ class DatabaseSeeder extends Seeder
 {
     public function run(): void
     {
-        $this->seedUsers();
+        $this->seedStaff();
         $this->seedDepartments();
         $doctors = $this->seedDoctors();
         $patients = $this->seedPatients();
+        $this->seedPatientLogin($patients);
+        $this->seedDoctorLogin($doctors);
         $this->seedAppointments($patients, $doctors);
         $this->seedQueue($patients);
-        $this->seedPrescriptions($patients);
-        $this->seedRecords($patients);
+        $this->seedPrescriptions($patients, $doctors);
+        $this->seedRecords($patients, $doctors);
         $this->seedInvoices($patients);
         $this->seedTestimonials();
         $this->seedFacilities();
+        $this->seedInboxData($patients);
     }
 
-    private function seedUsers(): void
+    /**
+     * A pending refill request and a contact message so the staff inboxes aren't empty.
+     *
+     * @param  array<string, Patient>  $patients
+     */
+    private function seedInboxData(array $patients): void
+    {
+        Prescription::where('patient_id', $patients['p3']->id)->where('status', 'Active')->first()?->update([
+            'refill_requested' => true,
+            'refill_requested_at' => now()->subDay(),
+        ]);
+
+        ContactMessage::updateOrCreate(
+            ['email' => 'prospective@example.com'],
+            [
+                'name' => 'Grace Holloway',
+                'phone' => '+1 555-7788',
+                'message' => 'Do you accept the BlueShield PPO plan for cardiology consultations? Thank you.',
+                'handled' => false,
+            ]
+        );
+    }
+
+    private function seedStaff(): void
     {
         $users = [
+            ['name' => 'Olivia Bennett', 'email' => 'super@medicore.com', 'password' => 'super123', 'role' => 'super_admin', 'phone' => '+1 555-0099', 'department' => 'Administration', 'avatar' => 'OB'],
             ['name' => 'Dr. Sarah Chen', 'email' => 'admin@medicore.com', 'password' => 'admin123', 'role' => 'admin', 'phone' => '+1 555-0100', 'department' => 'Administration', 'avatar' => 'SC'],
-            ['name' => 'Dr. James Wilson', 'email' => 'doctor@medicore.com', 'password' => 'doctor123', 'role' => 'doctor', 'phone' => '+1 555-0101', 'department' => 'Cardiology', 'avatar' => 'JW'],
             ['name' => 'Emily Rodriguez', 'email' => 'reception@medicore.com', 'password' => 'reception123', 'role' => 'receptionist', 'phone' => '+1 555-0102', 'department' => 'Front Desk', 'avatar' => 'ER'],
         ];
 
         foreach ($users as $user) {
             User::updateOrCreate(['email' => $user['email']], $user);
         }
+    }
+
+    /**
+     * @param  array<string, Doctor>  $doctors
+     */
+    private function seedDoctorLogin(array $doctors): void
+    {
+        // Demo doctor login, linked to the "Dr. James Wilson" profile.
+        $doctor = $doctors['d1'];
+
+        User::updateOrCreate(
+            ['email' => 'doctor@medicore.com'],
+            [
+                'name' => $doctor->name,
+                'password' => 'doctor123',
+                'role' => 'doctor',
+                'phone' => $doctor->phone,
+                'department' => $doctor->department,
+                'avatar' => $doctor->avatar,
+                'doctor_id' => $doctor->id,
+            ]
+        );
+    }
+
+    /**
+     * @param  array<string, Patient>  $patients
+     */
+    private function seedPatientLogin(array $patients): void
+    {
+        // Demo patient portal account, linked to Michael Johnson's clinical record.
+        $patient = $patients['p1'];
+
+        User::updateOrCreate(
+            ['email' => 'patient@medicore.com'],
+            [
+                'name' => $patient->name,
+                'password' => 'patient123',
+                'role' => 'patient',
+                'phone' => $patient->phone,
+                'patient_id' => $patient->id,
+            ]
+        );
+
+        $patient->update(['email' => 'patient@medicore.com']);
     }
 
     private function seedDepartments(): void
@@ -85,6 +156,43 @@ class DatabaseSeeder extends Seeder
             $result[$key] = Doctor::updateOrCreate(['email' => $doctor['email']], $doctor);
         }
 
+        // Flesh out each department so counts look realistic on the public site.
+        $first = ['Aaron', 'Bianca', 'Carlos', 'Dana', 'Elena', 'Felix', 'Grace', 'Hassan', 'Ivy', 'Jonah', 'Kira', 'Leo', 'Mona', 'Nate', 'Priya', 'Quinn', 'Rosa', 'Sam', 'Tara', 'Victor', 'Wendy', 'Xavier', 'Yara', 'Zane'];
+        $last = ['Adler', 'Boyd', 'Cross', 'Diaz', 'Frost', 'Gill', 'Hale', 'Ito', 'Jain', 'Klein', 'Lowe', 'Marsh', 'Nolan', 'Ortiz', 'Pope', 'Reed', 'Shah', 'Tan', 'Vance', 'Ward'];
+        $bySpec = [
+            'Cardiology' => ['Cardiology', 'Electrophysiology', 'Heart Failure'],
+            'Neurology' => ['Neurology', 'Epileptology', 'Movement Disorders'],
+            'Orthopedics' => ['Sports Medicine', 'Spine Surgery', 'Joint Replacement'],
+            'Pediatrics' => ['General Pediatrics', 'Neonatology', 'Pediatric Cardiology'],
+            'Surgery' => ['General Surgery', 'Laparoscopic Surgery', 'Trauma Surgery'],
+            'Dermatology' => ['Medical Dermatology', 'Cosmetic Dermatology', 'Dermatopathology'],
+            'Internal Medicine' => ['Internal Medicine', 'Endocrinology', 'Rheumatology'],
+            'Obstetrics & Gynecology' => ['Obstetrics', 'Gynecologic Oncology', 'Maternal-Fetal Medicine'],
+        ];
+        $targets = ['Cardiology' => 7, 'Neurology' => 5, 'Orthopedics' => 6, 'Pediatrics' => 9, 'Surgery' => 11, 'Dermatology' => 3, 'Internal Medicine' => 8, 'Obstetrics & Gynecology' => 7];
+        $n = 0;
+        foreach ($targets as $dept => $count) {
+            for ($i = 0; $i < $count; $i++) {
+                $name = 'Dr. '.$first[$n % count($first)].' '.$last[($n * 3) % count($last)];
+                $n++;
+                Doctor::updateOrCreate(
+                    ['email' => 'd'.$n.'.staff@medicore.com'],
+                    [
+                        'name' => $name,
+                        'phone' => sprintf('+1 555-2%03d', 100 + $n),
+                        'specialization' => $bySpec[$dept][$i % 3],
+                        'department' => $dept,
+                        'experience' => 5 + ($n % 20),
+                        'qualification' => ['MD', 'MD, PhD', 'MD, FACP', 'MBBS, MS'][$n % 4],
+                        'availability' => ['Available', 'Available', 'Available', 'Busy', 'On Leave'][$n % 5],
+                        'rating' => round(4.3 + ($n % 7) / 10, 1),
+                        'avatar' => collect(explode(' ', $name))->slice(1)->take(2)->map(fn ($p) => mb_substr($p, 0, 1))->implode(''),
+                        'bio' => "{$bySpec[$dept][$i % 3]} specialist in the {$dept} department.",
+                    ]
+                );
+            }
+        }
+
         return $result;
     }
 
@@ -95,12 +203,12 @@ class DatabaseSeeder extends Seeder
     {
         $patients = [
             'p1' => ['patient_code' => 'PT-2024-001', 'name' => 'Michael Johnson', 'email' => 'michael.j@email.com', 'phone' => '+1 555-1001', 'gender' => 'Male', 'age' => 45, 'blood_group' => 'O+', 'address' => '123 Maple St, Springfield', 'emergency_contact' => '+1 555-1002', 'status' => 'Active', 'registered_date' => '2024-01-15', 'last_visit' => '2024-08-20'],
-            'p2' => ['patient_code' => 'PT-2024-002', 'name' => 'Emily Davis', 'email' => 'emily.davis@email.com', 'phone' => '+1 555-1003', 'gender' => 'Female', 'age' => 32, 'blood_group' => 'A+', 'address' => '456 Oak Ave, Riverside', 'emergency_contact' => '+1 555-1004', 'status' => 'Admitted', 'registered_date' => '2024-02-10', 'last_visit' => '2024-08-25'],
+            'p2' => ['patient_code' => 'PT-2024-002', 'name' => 'Emily Davis', 'email' => 'emily.davis@email.com', 'phone' => '+1 555-1003', 'gender' => 'Female', 'age' => 32, 'blood_group' => 'A+', 'address' => '456 Oak Ave, Riverside', 'emergency_contact' => '+1 555-1004', 'status' => 'Admitted', 'department' => 'Neurology', 'registered_date' => '2024-02-10', 'last_visit' => '2024-08-25'],
             'p3' => ['patient_code' => 'PT-2024-003', 'name' => 'Robert Brown', 'email' => 'robert.b@email.com', 'phone' => '+1 555-1005', 'gender' => 'Male', 'age' => 67, 'blood_group' => 'B+', 'address' => '789 Pine Rd, Lakeside', 'emergency_contact' => '+1 555-1006', 'status' => 'Active', 'registered_date' => '2024-01-20', 'last_visit' => '2024-08-18'],
             'p4' => ['patient_code' => 'PT-2024-004', 'name' => 'Jessica Martinez', 'email' => 'jessica.m@email.com', 'phone' => '+1 555-1007', 'gender' => 'Female', 'age' => 28, 'blood_group' => 'AB+', 'address' => '321 Elm St, Hillcrest', 'emergency_contact' => '+1 555-1008', 'status' => 'Active', 'registered_date' => '2024-03-05', 'last_visit' => '2024-08-22'],
             'p5' => ['patient_code' => 'PT-2024-005', 'name' => 'William Garcia', 'email' => 'william.g@email.com', 'phone' => '+1 555-1009', 'gender' => 'Male', 'age' => 54, 'blood_group' => 'O-', 'address' => '654 Cedar Ln, Brookfield', 'emergency_contact' => '+1 555-1010', 'status' => 'Inactive', 'registered_date' => '2024-02-28', 'last_visit' => '2024-07-15'],
             'p6' => ['patient_code' => 'PT-2024-006', 'name' => 'Olivia Taylor', 'email' => 'olivia.t@email.com', 'phone' => '+1 555-1011', 'gender' => 'Female', 'age' => 41, 'blood_group' => 'A-', 'address' => '987 Birch Dr, Westwood', 'emergency_contact' => '+1 555-1012', 'status' => 'Active', 'registered_date' => '2024-04-12', 'last_visit' => '2024-08-28'],
-            'p7' => ['patient_code' => 'PT-2024-007', 'name' => 'David Anderson', 'email' => 'david.a@email.com', 'phone' => '+1 555-1013', 'gender' => 'Male', 'age' => 38, 'blood_group' => 'B-', 'address' => '147 Spruce St, Eastgate', 'emergency_contact' => '+1 555-1014', 'status' => 'Admitted', 'registered_date' => '2024-05-08', 'last_visit' => '2024-08-30'],
+            'p7' => ['patient_code' => 'PT-2024-007', 'name' => 'David Anderson', 'email' => 'david.a@email.com', 'phone' => '+1 555-1013', 'gender' => 'Male', 'age' => 38, 'blood_group' => 'B-', 'address' => '147 Spruce St, Eastgate', 'emergency_contact' => '+1 555-1014', 'status' => 'Admitted', 'department' => 'Surgery', 'registered_date' => '2024-05-08', 'last_visit' => '2024-08-30'],
             'p8' => ['patient_code' => 'PT-2024-008', 'name' => 'Sophia Thomas', 'email' => 'sophia.t@email.com', 'phone' => '+1 555-1015', 'gender' => 'Female', 'age' => 52, 'blood_group' => 'O+', 'address' => '258 Willow Way, Fairmont', 'emergency_contact' => '+1 555-1016', 'status' => 'Active', 'registered_date' => '2024-06-01', 'last_visit' => '2024-08-26'],
             'p9' => ['patient_code' => 'PT-2024-009', 'name' => 'Daniel Moore', 'email' => 'daniel.m@email.com', 'phone' => '+1 555-1017', 'gender' => 'Male', 'age' => 29, 'blood_group' => 'A+', 'address' => '369 Aspen Ct, Greenfield', 'emergency_contact' => '+1 555-1018', 'status' => 'Active', 'registered_date' => '2024-06-20', 'last_visit' => '2024-08-29'],
             'p10' => ['patient_code' => 'PT-2024-010', 'name' => 'Isabella Lee', 'email' => 'isabella.l@email.com', 'phone' => '+1 555-1019', 'gender' => 'Female', 'age' => 35, 'blood_group' => 'AB-', 'address' => '741 Redwood Blvd, Sunnyvale', 'emergency_contact' => '+1 555-1020', 'status' => 'Active', 'registered_date' => '2024-07-02', 'last_visit' => '2024-08-27'],
@@ -163,6 +271,8 @@ class DatabaseSeeder extends Seeder
     {
         QueueEntry::query()->delete();
 
+        $byName = Doctor::pluck('id', 'name');
+
         $rows = [
             [1, 'p1', 'Dr. James Wilson', 'Cardiology', 'Normal', 'In Consultation', '08:45', 0],
             [2, 'p2', 'Dr. Sarah Chen', 'Neurology', 'Normal', 'Waiting', '09:00', 15],
@@ -179,6 +289,7 @@ class DatabaseSeeder extends Seeder
             QueueEntry::create([
                 'token_number' => $token,
                 'patient_id' => $patient->id,
+                'doctor_id' => $byName[$doctorName] ?? null,
                 'patient_name' => $patient->name,
                 'doctor_name' => $doctorName,
                 'department' => $department,
@@ -192,9 +303,12 @@ class DatabaseSeeder extends Seeder
 
     /**
      * @param  array<string, Patient>  $patients
+     * @param  array<string, Doctor>  $doctors
      */
-    private function seedPrescriptions(array $patients): void
+    private function seedPrescriptions(array $patients, array $doctors): void
     {
+        $byName = collect($doctors)->keyBy('name');
+
         $rows = [
             ['p1', 'Dr. James Wilson', '2024-08-20', 'Hypertension', 'Active', 'Monitor blood pressure weekly. Follow-up in 4 weeks.', [
                 ['name' => 'Lisinopril', 'dosage' => '10mg', 'duration' => '30 days', 'instructions' => 'Take once daily in the morning'],
@@ -218,12 +332,17 @@ class DatabaseSeeder extends Seeder
             ]],
         ];
 
-        foreach ($rows as [$pKey, $doctorName, $date, $diagnosis, $status, $notes, $medications]) {
+        $offsets = [10, 5, 12, 2, 8];
+
+        foreach (array_values($rows) as $i => [$pKey, $doctorName, $date, $diagnosis, $status, $notes, $medications]) {
             $patient = $patients[$pKey];
+            $issued = Carbon::today()->subDays($offsets[$i] ?? ($i * 4))->toDateString();
 
             Prescription::updateOrCreate(
-                ['patient_id' => $patient->id, 'date' => $date, 'diagnosis' => $diagnosis],
+                ['patient_id' => $patient->id, 'diagnosis' => $diagnosis],
                 [
+                    'date' => $issued,
+                    'doctor_id' => optional($byName->get($doctorName))->id,
                     'patient_name' => $patient->name,
                     'doctor_name' => $doctorName,
                     'status' => $status,
@@ -236,9 +355,12 @@ class DatabaseSeeder extends Seeder
 
     /**
      * @param  array<string, Patient>  $patients
+     * @param  array<string, Doctor>  $doctors
      */
-    private function seedRecords(array $patients): void
+    private function seedRecords(array $patients, array $doctors): void
     {
+        $byName = collect($doctors)->keyBy('name');
+
         $rows = [
             ['p1', 'Dr. James Wilson', '2024-08-20', 'Lab Report', 'Complete Blood Count', 'CBC results within normal range. Cholesterol slightly elevated.', 2, 'Under Observation'],
             ['p1', 'Dr. James Wilson', '2024-08-20', 'Vitals', 'Vital Signs', 'BP: 145/92, HR: 78, Temp: 98.6F, RR: 16', 0, 'Critical'],
@@ -250,12 +372,15 @@ class DatabaseSeeder extends Seeder
             ['p4', 'Dr. Jennifer Lee', '2024-08-22', 'Treatment', 'Vaccination Record', 'Routine childhood vaccinations administered. No adverse reactions.', 0, 'Normal'],
         ];
 
-        foreach ($rows as [$pKey, $doctorName, $date, $type, $title, $description, $attachments, $status]) {
+        foreach (array_values($rows) as $i => [$pKey, $doctorName, $date, $type, $title, $description, $attachments, $status]) {
             $patient = $patients[$pKey];
+            $recorded = Carbon::today()->subDays([10, 10, 5, 12, 5, 2, 1, 8][$i] ?? $i)->toDateString();
 
             MedicalRecord::updateOrCreate(
-                ['patient_id' => $patient->id, 'date' => $date, 'title' => $title],
+                ['patient_id' => $patient->id, 'title' => $title],
                 [
+                    'date' => $recorded,
+                    'doctor_id' => optional($byName->get($doctorName))->id,
                     'patient_name' => $patient->name,
                     'doctor_name' => $doctorName,
                     'type' => $type,
@@ -273,49 +398,53 @@ class DatabaseSeeder extends Seeder
     private function seedInvoices(array $patients): void
     {
         $rows = [
-            ['INV-2024-001', 'p1', '2024-08-20', '2024-09-20', 850, 'Insurance', [
+            ['INV-2026-001', 'p1', '2024-08-20', '2024-09-20', 850, 'Insurance', [
                 ['description' => 'Cardiology Consultation', 'quantity' => 1, 'unitPrice' => 250, 'total' => 250],
                 ['description' => 'ECG Test', 'quantity' => 1, 'unitPrice' => 300, 'total' => 300],
                 ['description' => 'Laboratory Tests', 'quantity' => 1, 'unitPrice' => 300, 'total' => 300],
             ]],
-            ['INV-2024-002', 'p2', '2024-08-25', '2024-09-25', 600, 'Card', [
+            ['INV-2026-002', 'p2', '2024-08-25', '2024-09-25', 600, 'Card', [
                 ['description' => 'Neurology Consultation', 'quantity' => 1, 'unitPrice' => 300, 'total' => 300],
                 ['description' => 'Brain MRI', 'quantity' => 1, 'unitPrice' => 700, 'total' => 700],
                 ['description' => 'Medications', 'quantity' => 1, 'unitPrice' => 200, 'total' => 200],
             ]],
-            ['INV-2024-003', 'p3', '2024-08-18', '2024-09-18', 0, null, [
+            ['INV-2026-003', 'p3', '2024-08-18', '2024-09-18', 0, null, [
                 ['description' => 'Orthopedic Consultation', 'quantity' => 1, 'unitPrice' => 200, 'total' => 200],
                 ['description' => 'Knee X-Ray', 'quantity' => 1, 'unitPrice' => 150, 'total' => 150],
                 ['description' => 'Medications', 'quantity' => 1, 'unitPrice' => 100, 'total' => 100],
             ]],
-            ['INV-2024-004', 'p6', '2024-08-28', '2024-09-28', 320, 'Cash', [
+            ['INV-2026-004', 'p6', '2024-08-28', '2024-09-28', 320, 'Cash', [
                 ['description' => 'Internal Medicine Consultation', 'quantity' => 1, 'unitPrice' => 180, 'total' => 180],
                 ['description' => 'HbA1c Test', 'quantity' => 1, 'unitPrice' => 140, 'total' => 140],
             ]],
-            ['INV-2024-005', 'p7', '2024-08-30', '2024-08-30', 0, null, [
+            ['INV-2026-005', 'p7', '2024-08-30', '2024-08-30', 0, null, [
                 ['description' => 'Emergency Surgery Consultation', 'quantity' => 1, 'unitPrice' => 500, 'total' => 500],
                 ['description' => 'CT Scan', 'quantity' => 1, 'unitPrice' => 1000, 'total' => 1000],
                 ['description' => 'Emergency Room Charges', 'quantity' => 1, 'unitPrice' => 2000, 'total' => 2000],
             ]],
-            ['INV-2024-006', 'p4', '2024-08-22', '2024-09-22', 180, 'Online', [
+            ['INV-2026-006', 'p4', '2024-08-22', '2024-09-22', 180, 'Online', [
                 ['description' => 'Pediatric Consultation', 'quantity' => 1, 'unitPrice' => 150, 'total' => 150],
                 ['description' => 'Vaccination', 'quantity' => 1, 'unitPrice' => 30, 'total' => 30],
             ]],
-            ['INV-2024-007', 'p8', '2024-08-26', '2024-09-26', 0, null, [
+            ['INV-2026-007', 'p8', '2024-08-26', '2024-09-26', 0, null, [
                 ['description' => 'Cardiology Consultation', 'quantity' => 1, 'unitPrice' => 250, 'total' => 250],
                 ['description' => 'ECG Test', 'quantity' => 1, 'unitPrice' => 30, 'total' => 30],
             ]],
         ];
 
-        foreach ($rows as [$number, $pKey, $date, $dueDate, $paid, $method, $items]) {
+        // Spread invoice dates across the last ~5 months so revenue charts populate.
+        $offsets = [130, 96, 68, 40, 12, 5, 2];
+
+        foreach (array_values($rows) as $i => [$number, $pKey, $date, $dueDate, $paid, $method, $items]) {
             $patient = $patients[$pKey];
+            $issued = Carbon::today()->subDays($offsets[$i] ?? ($i * 20));
 
             $invoice = Invoice::firstOrNew(['invoice_number' => $number]);
             $invoice->fill([
                 'patient_id' => $patient->id,
                 'patient_name' => $patient->name,
-                'date' => $date,
-                'due_date' => $dueDate,
+                'date' => $issued->toDateString(),
+                'due_date' => $issued->copy()->addDays(30)->toDateString(),
                 'paid_amount' => $paid,
                 'payment_method' => $method,
                 'items' => $items,
