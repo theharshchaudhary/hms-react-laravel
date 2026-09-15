@@ -6,10 +6,12 @@ use App\Http\Controllers\Controller;
 use App\Http\Resources\AppointmentResource;
 use App\Http\Resources\InvoiceResource;
 use App\Http\Resources\MedicalRecordResource;
+use App\Http\Resources\MedicineSaleResource;
 use App\Http\Resources\PrescriptionResource;
 use App\Models\Appointment;
 use App\Models\Doctor;
 use App\Models\Invoice;
+use App\Models\MedicineSale;
 use App\Models\Patient;
 use App\Models\Prescription;
 use Barryvdh\DomPDF\Facade\Pdf;
@@ -53,6 +55,7 @@ class PortalController extends Controller
                 'medicalRecords' => $patient->medicalRecords()->count(),
                 'outstandingBalance' => round((float) $patient->invoices()
                     ->selectRaw('coalesce(sum(amount - paid_amount), 0) as due')->value('due'), 2),
+                'pharmacyPurchases' => $patient->medicineSales()->count(),
             ],
         ]);
     }
@@ -224,6 +227,20 @@ class PortalController extends Controller
         abort_unless($invoice->patient_id === $this->patient($request)->id, 403);
 
         return $this->renderInvoicePdf($invoice);
+    }
+
+    public function medicineSales(Request $request)
+    {
+        return MedicineSaleResource::collection(
+            $this->patient($request)->medicineSales()->latest('date')->latest('id')->get()
+        );
+    }
+
+    public function medicineSalePdf(Request $request, MedicineSale $medicineSale)
+    {
+        abort_unless($medicineSale->patient_id === $this->patient($request)->id, 403);
+
+        return MedicineSaleController::renderPdf($medicineSale);
     }
 
     public static function renderInvoicePdf(Invoice $invoice)

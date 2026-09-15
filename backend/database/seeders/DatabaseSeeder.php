@@ -9,6 +9,8 @@ use App\Models\Doctor;
 use App\Models\Facility;
 use App\Models\Invoice;
 use App\Models\MedicalRecord;
+use App\Models\Medicine;
+use App\Models\MedicineSale;
 use App\Models\Patient;
 use App\Models\Prescription;
 use App\Models\QueueEntry;
@@ -32,6 +34,8 @@ class DatabaseSeeder extends Seeder
         $this->seedPrescriptions($patients, $doctors);
         $this->seedRecords($patients, $doctors);
         $this->seedInvoices($patients);
+        $medicines = $this->seedMedicines();
+        $this->seedMedicineSales($patients, $medicines);
         $this->seedTestimonials();
         $this->seedFacilities();
         $this->seedInboxData($patients);
@@ -451,6 +455,95 @@ class DatabaseSeeder extends Seeder
             ]);
             $invoice->recalculate();
             $invoice->save();
+        }
+    }
+
+    /**
+     * @return array<string, Medicine>
+     */
+    private function seedMedicines(): array
+    {
+        $rows = [
+            'm1' => ['name' => 'Paracetamol', 'generic_name' => 'Acetaminophen', 'category' => 'Tablet', 'manufacturer' => 'Cipla', 'unit' => 'Strip of 10', 'unit_price' => 2.50, 'stock_quantity' => 480, 'reorder_level' => 50],
+            'm2' => ['name' => 'Amoxicillin 500mg', 'generic_name' => 'Amoxicillin', 'category' => 'Capsule', 'manufacturer' => 'Sun Pharma', 'unit' => 'Strip of 10', 'unit_price' => 6.00, 'stock_quantity' => 220, 'reorder_level' => 40],
+            'm3' => ['name' => 'Ibuprofen 400mg', 'generic_name' => 'Ibuprofen', 'category' => 'Tablet', 'manufacturer' => 'Pfizer', 'unit' => 'Strip of 10', 'unit_price' => 3.20, 'stock_quantity' => 300, 'reorder_level' => 50],
+            'm4' => ['name' => 'Cetirizine 10mg', 'generic_name' => 'Cetirizine', 'category' => 'Tablet', 'manufacturer' => 'GSK', 'unit' => 'Strip of 10', 'unit_price' => 1.80, 'stock_quantity' => 150, 'reorder_level' => 30],
+            'm5' => ['name' => 'Omeprazole 20mg', 'generic_name' => 'Omeprazole', 'category' => 'Capsule', 'manufacturer' => 'Dr. Reddy\'s', 'unit' => 'Strip of 10', 'unit_price' => 4.50, 'stock_quantity' => 90, 'reorder_level' => 30],
+            'm6' => ['name' => 'Metformin 500mg', 'generic_name' => 'Metformin', 'category' => 'Tablet', 'manufacturer' => 'Sun Pharma', 'unit' => 'Strip of 15', 'unit_price' => 3.00, 'stock_quantity' => 260, 'reorder_level' => 40],
+            'm7' => ['name' => 'Atorvastatin 20mg', 'generic_name' => 'Atorvastatin', 'category' => 'Tablet', 'manufacturer' => 'Pfizer', 'unit' => 'Strip of 10', 'unit_price' => 5.50, 'stock_quantity' => 140, 'reorder_level' => 30],
+            'm8' => ['name' => 'Amlodipine 5mg', 'generic_name' => 'Amlodipine', 'category' => 'Tablet', 'manufacturer' => 'Cipla', 'unit' => 'Strip of 10', 'unit_price' => 2.80, 'stock_quantity' => 18, 'reorder_level' => 30],
+            'm9' => ['name' => 'Azithromycin 500mg', 'generic_name' => 'Azithromycin', 'category' => 'Tablet', 'manufacturer' => 'Sun Pharma', 'unit' => 'Strip of 3', 'unit_price' => 8.90, 'stock_quantity' => 8, 'reorder_level' => 20],
+            'm10' => ['name' => 'Cough Syrup', 'generic_name' => 'Dextromethorphan', 'category' => 'Syrup', 'manufacturer' => 'Johnson & Johnson', 'unit' => 'Bottle 100ml', 'unit_price' => 7.25, 'stock_quantity' => 60, 'reorder_level' => 15],
+            'm11' => ['name' => 'ORS Powder', 'generic_name' => 'Oral Rehydration Salts', 'category' => 'Other', 'manufacturer' => 'GSK', 'unit' => 'Sachet', 'unit_price' => 0.60, 'stock_quantity' => 500, 'reorder_level' => 100],
+            'm12' => ['name' => 'Vitamin C 500mg', 'generic_name' => 'Ascorbic Acid', 'category' => 'Tablet', 'manufacturer' => 'Bayer', 'unit' => 'Strip of 15', 'unit_price' => 3.75, 'stock_quantity' => 210, 'reorder_level' => 30],
+            'm13' => ['name' => 'Insulin Glargine', 'generic_name' => 'Insulin Glargine', 'category' => 'Injection', 'manufacturer' => 'Sanofi', 'unit' => 'Vial 10ml', 'unit_price' => 32.00, 'stock_quantity' => 25, 'reorder_level' => 10],
+            'm14' => ['name' => 'Betamethasone Cream', 'generic_name' => 'Betamethasone', 'category' => 'Ointment', 'manufacturer' => 'GSK', 'unit' => 'Tube 15g', 'unit_price' => 4.10, 'stock_quantity' => 45, 'reorder_level' => 15],
+            'm15' => ['name' => 'Artificial Tears', 'generic_name' => 'Carboxymethylcellulose', 'category' => 'Drops', 'manufacturer' => 'Allergan', 'unit' => 'Bottle 10ml', 'unit_price' => 5.90, 'stock_quantity' => 5, 'reorder_level' => 15],
+            'm16' => ['name' => 'Loratadine 10mg', 'generic_name' => 'Loratadine', 'category' => 'Tablet', 'manufacturer' => 'Bayer', 'unit' => 'Strip of 10', 'unit_price' => 2.20, 'stock_quantity' => 170, 'reorder_level' => 30],
+        ];
+
+        $result = [];
+        foreach ($rows as $key => $row) {
+            $row['expiry_date'] = match ($key) {
+                'm8' => now()->addDays(35)->toDateString(),  // expiring soon, on top of being low stock
+                'm15' => now()->addDays(20)->toDateString(), // expiring soon
+                default => now()->addYears(2)->toDateString(),
+            };
+            $row['batch_number'] = 'BN-'.strtoupper(substr(md5($key), 0, 6));
+            $result[$key] = Medicine::updateOrCreate(['name' => $row['name']], $row);
+        }
+
+        return $result;
+    }
+
+    /**
+     * @param  array<string, Patient>  $patients
+     * @param  array<string, Medicine>  $medicines
+     */
+    private function seedMedicineSales(array $patients, array $medicines): void
+    {
+        $cashier = User::where('email', 'reception@medicore.com')->first();
+
+        $sales = [
+            ['RX-2026-0001', 'p1', 6, [['m1', 2], ['m7', 1]], 0, 'Cash'],
+            ['RX-2026-0002', 'p6', 4, [['m6', 2], ['m5', 1]], 1.00, 'Card'],
+            ['RX-2026-0003', null, 2, [['m3', 1], ['m4', 1], ['m11', 3]], 0, 'Cash'],
+            ['RX-2026-0004', 'p3', 1, [['m3', 2], ['m14', 1]], 0, 'Insurance'],
+        ];
+
+        foreach ($sales as [$number, $pKey, $daysAgo, $lines, $discount, $method]) {
+            $patient = $pKey ? $patients[$pKey] : null;
+
+            $items = collect($lines)->map(function ($line) use ($medicines) {
+                [$mKey, $qty] = $line;
+                $medicine = $medicines[$mKey];
+
+                return [
+                    'medicineId' => (string) $medicine->id,
+                    'name' => $medicine->name,
+                    'unit' => $medicine->unit,
+                    'unitPrice' => (float) $medicine->unit_price,
+                    'quantity' => $qty,
+                    'total' => round($qty * (float) $medicine->unit_price, 2),
+                ];
+            })->all();
+
+            $sale = MedicineSale::firstOrNew(['sale_number' => $number]);
+            $sale->fill([
+                'patient_id' => $patient?->id,
+                'customer_name' => $patient?->name ?? 'Walk-in Customer',
+                'customer_phone' => $patient?->phone,
+                'served_by' => $cashier?->id,
+                'date' => now()->subDays($daysAgo)->toDateString(),
+                'items' => $items,
+                'discount' => $discount,
+                'tax' => 0,
+                'payment_method' => $method,
+            ]);
+            $sale->recalculate();
+            $sale->paid_amount = $sale->total;
+            $sale->recalculate();
+            $sale->save();
         }
     }
 

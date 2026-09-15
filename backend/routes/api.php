@@ -9,6 +9,8 @@ use App\Http\Controllers\Api\DepartmentController;
 use App\Http\Controllers\Api\DoctorController;
 use App\Http\Controllers\Api\InvoiceController;
 use App\Http\Controllers\Api\MedicalRecordController;
+use App\Http\Controllers\Api\MedicineController;
+use App\Http\Controllers\Api\MedicineSaleController;
 use App\Http\Controllers\Api\PatientController;
 use App\Http\Controllers\Api\PortalController;
 use App\Http\Controllers\Api\PrescriptionController;
@@ -71,6 +73,9 @@ Route::middleware(['auth:sanctum', 'role:patient'])->prefix('portal')->group(fun
 
     Route::get('invoices', [PortalController::class, 'invoices']);
     Route::get('invoices/{invoice}/pdf', [PortalController::class, 'invoicePdf']);
+
+    Route::get('medicine-sales', [PortalController::class, 'medicineSales']);
+    Route::get('medicine-sales/{medicineSale}/pdf', [PortalController::class, 'medicineSalePdf']);
 });
 
 /*
@@ -96,6 +101,11 @@ Route::middleware(['auth:sanctum', 'role:super_admin,admin,doctor,receptionist']
     Route::apiResource('invoices', InvoiceController::class)->only(['index', 'show']);
     Route::get('invoices/{invoice}/pdf', [InvoiceController::class, 'pdf']);
 
+    Route::apiResource('medicines', MedicineController::class)->only(['index', 'show']);
+    Route::apiResource('medicine-sales', MedicineSaleController::class)->only(['index', 'show'])
+        ->parameters(['medicine-sales' => 'medicineSale']);
+    Route::get('medicine-sales/{medicineSale}/pdf', [MedicineSaleController::class, 'pdf']);
+
     Route::get('dashboard/overview', [DashboardController::class, 'overview']);
 
     // Clinical writes.
@@ -104,9 +114,11 @@ Route::middleware(['auth:sanctum', 'role:super_admin,admin,doctor,receptionist']
         Route::apiResource('records', MedicalRecordController::class)->only(['store'])->parameters(['records' => 'record']);
     });
 
-    // Billing writes.
+    // Billing writes (consultation invoices + pharmacy counter sales).
     Route::middleware('role:super_admin,admin,receptionist')->group(function () {
         Route::apiResource('invoices', InvoiceController::class)->only(['store', 'update']);
+        Route::apiResource('medicine-sales', MedicineSaleController::class)->only(['store', 'update'])
+            ->parameters(['medicine-sales' => 'medicineSale']);
     });
 
     // Admin-level configuration.
@@ -114,6 +126,7 @@ Route::middleware(['auth:sanctum', 'role:super_admin,admin,doctor,receptionist']
         Route::delete('patients/{patient}', [PatientController::class, 'destroy']);
         Route::apiResource('doctors', DoctorController::class)->only(['store', 'update', 'destroy']);
         Route::apiResource('departments', DepartmentController::class)->only(['store', 'update', 'destroy']);
+        Route::apiResource('medicines', MedicineController::class)->only(['store', 'update', 'destroy']);
         Route::get('reports/summary', [ReportController::class, 'summary']);
         Route::get('reports/pdf', [ReportController::class, 'pdf']);
         Route::apiResource('messages', ContactMessageController::class)->only(['index', 'update', 'destroy']);

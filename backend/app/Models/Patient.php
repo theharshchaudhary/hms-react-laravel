@@ -44,6 +44,11 @@ class Patient extends Model
         return $this->hasMany(Invoice::class);
     }
 
+    public function medicineSales(): HasMany
+    {
+        return $this->hasMany(MedicineSale::class);
+    }
+
     public static function generateCode(): string
     {
         $year = now()->format('Y');

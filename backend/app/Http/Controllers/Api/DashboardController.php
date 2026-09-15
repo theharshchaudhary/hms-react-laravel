@@ -7,6 +7,8 @@ use App\Http\Resources\AppointmentResource;
 use App\Models\Appointment;
 use App\Models\Doctor;
 use App\Models\Invoice;
+use App\Models\Medicine;
+use App\Models\MedicineSale;
 use App\Models\Patient;
 use App\Models\Prescription;
 use Illuminate\Http\Request;
@@ -41,12 +43,14 @@ class DashboardController extends Controller
 
         $monthly = collect(range(5, 0))->map(function ($back) {
             $month = Carbon::now()->startOfMonth()->subMonthsNoOverflow($back);
+            $invoiceRevenue = (float) Invoice::whereYear('date', $month->year)
+                ->whereMonth('date', $month->month)->sum('paid_amount');
+            $pharmacyRevenue = (float) MedicineSale::whereYear('date', $month->year)
+                ->whereMonth('date', $month->month)->sum('paid_amount');
 
             return [
                 'label' => $month->format('M'),
-                'value' => round((float) Invoice::whereYear('date', $month->year)
-                    ->whereMonth('date', $month->month)
-                    ->sum('paid_amount'), 2),
+                'value' => round($invoiceRevenue + $pharmacyRevenue, 2),
             ];
         })->values();
 
@@ -66,9 +70,11 @@ class DashboardController extends Controller
             'activeDoctors' => Doctor::where('availability', 'Available')->count(),
             'totalDoctors' => Doctor::count(),
             'pendingRefills' => $rx()->where('refill_requested', true)->count(),
-            'totalRevenue' => round((float) Invoice::sum('paid_amount'), 2),
+            'totalRevenue' => round((float) Invoice::sum('paid_amount') + (float) MedicineSale::sum('paid_amount'), 2),
             'pendingRevenue' => round((float) Invoice::selectRaw('coalesce(sum(amount - paid_amount), 0) as due')->value('due'), 2),
             'totalInvoices' => Invoice::count(),
+            'lowStockMedicines' => Medicine::whereColumn('stock_quantity', '<=', 'reorder_level')->count(),
+            'pharmacySalesToday' => MedicineSale::whereDate('date', $today)->count(),
             'appointmentStatus' => collect($statuses)
                 ->map(fn ($s) => ['label' => $s, 'value' => (int) ($statusCounts[$s] ?? 0)])
                 ->filter(fn ($row) => $row['value'] > 0)
