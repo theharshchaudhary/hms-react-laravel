@@ -1,6 +1,7 @@
 import type {
   User, Patient, Doctor, Department, Appointment, QueueEntry,
   Prescription, MedicalRecord, Invoice, Testimonial, Facility, ContactMessage, StaffRole,
+  Medicine, MedicineSale,
 } from '@/types';
 
 /**
@@ -174,6 +175,28 @@ export const appointmentApi = {
   checkIn: (id: string) => request<QueueEntry>(`/appointments/${id}/check-in`, { method: 'POST' }),
 };
 
+// --- Pharmacy ---
+export const medicineApi = resource<Medicine>('medicines');
+
+export interface MedicineSaleLine { medicineId: string; quantity: number }
+export interface MedicineSaleInput {
+  patientId?: string;
+  customerName?: string;
+  customerPhone?: string;
+  items: MedicineSaleLine[];
+  discount?: number;
+  tax?: number;
+  paidAmount?: number;
+  paymentMethod?: string;
+  notes?: string;
+}
+
+export const medicineSaleApi = {
+  ...resource<MedicineSale>('medicine-sales'),
+  create: (data: MedicineSaleInput) => request<MedicineSale>('/medicine-sales', { method: 'POST', ...jsonBody(data) }),
+  downloadInvoice: (id: string, saleNumber: string) => downloadFile(`/medicine-sales/${id}/pdf`, `${saleNumber}.pdf`),
+};
+
 export const queueApi = {
   list: () => request<QueueEntry[]>('/queue'),
   create: (data: unknown) => request<QueueEntry>('/queue', { method: 'POST', ...jsonBody(data) }),
@@ -196,6 +219,8 @@ export interface DashboardOverview {
   totalRevenue: number;
   pendingRevenue: number;
   totalInvoices: number;
+  lowStockMedicines: number;
+  pharmacySalesToday: number;
   appointmentStatus: { label: string; value: number }[];
   weeklyAppointments: { label: string; value: number }[];
   monthlyRevenue: { label: string; value: number }[];
@@ -312,6 +337,7 @@ export interface PortalDashboard {
     activePrescriptions: number;
     medicalRecords: number;
     outstandingBalance: number;
+    pharmacyPurchases: number;
   };
 }
 
@@ -344,6 +370,10 @@ export const portalApi = {
 
   invoices: () => request<Invoice[]>('/portal/invoices'),
   downloadInvoice: (id: string, number: string) => downloadFile(`/portal/invoices/${id}/pdf`, `${number}.pdf`),
+
+  medicineSales: () => request<MedicineSale[]>('/portal/medicine-sales'),
+  downloadMedicineSale: (id: string, saleNumber: string) =>
+    downloadFile(`/portal/medicine-sales/${id}/pdf`, `${saleNumber}.pdf`),
 };
 
 export const billingApi = {

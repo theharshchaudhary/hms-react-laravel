@@ -16,6 +16,7 @@ import { ReportsPage } from '@/pages/dashboard/ReportsPage';
 import { SettingsPage } from '@/pages/dashboard/SettingsPage';
 import { UsersPage } from '@/pages/dashboard/UsersPage';
 import { MessagesPage } from '@/pages/dashboard/MessagesPage';
+import { PharmacyPage } from '@/pages/dashboard/PharmacyPage';
 import type { UserRole } from '@/types';
 
 const pageTitles: Record<string, string> = {
@@ -28,6 +29,7 @@ const pageTitles: Record<string, string> = {
   prescriptions: 'Prescriptions',
   records: 'Medical Records',
   billing: 'Billing & Invoices',
+  pharmacy: 'Pharmacy',
   reports: 'Reports & Analytics',
   messages: 'Messages',
   users: 'User Management',
@@ -46,6 +48,7 @@ const roleAccess: Record<string, UserRole[]> = {
   prescriptions: ['super_admin', 'admin', 'doctor'],
   records: ['super_admin', 'admin', 'doctor'],
   billing: ['super_admin', 'admin', 'receptionist'],
+  pharmacy: ['super_admin', 'admin', 'receptionist'],
   reports: ['super_admin', 'admin'],
   messages: ['super_admin', 'admin'],
   users: ['super_admin'],
@@ -75,6 +78,7 @@ export function DashboardPage({ activeKey }: { activeKey: string }) {
       case 'prescriptions': return <PrescriptionsPage />;
       case 'records': return <RecordsPage />;
       case 'billing': return <BillingPage />;
+      case 'pharmacy': return <PharmacyPage />;
       case 'reports': return <ReportsPage />;
       case 'messages': return <MessagesPage />;
       case 'users': return <UsersPage />;

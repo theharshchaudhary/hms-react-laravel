@@ -1,7 +1,7 @@
 import {
   LayoutDashboard, Users, Stethoscope, Building2, CalendarDays,
   ListOrdered, Pill, FileText, Receipt, BarChart3, Settings,
-  HeartPulse, X, LogOut, ShieldCheck, MessageSquare,
+  HeartPulse, X, LogOut, ShieldCheck, MessageSquare, ShoppingCart,
 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import type { UserRole } from '@/types';
@@ -26,6 +26,7 @@ const navItems: NavItem[] = [
   { key: 'prescriptions', label: 'Prescriptions', icon: Pill, roles: ['super_admin', 'admin', 'doctor'] },
   { key: 'records', label: 'Medical Records', icon: FileText, roles: ['super_admin', 'admin', 'doctor'] },
   { key: 'billing', label: 'Billing', icon: Receipt, roles: ['super_admin', 'admin', 'receptionist'] },
+  { key: 'pharmacy', label: 'Pharmacy', icon: ShoppingCart, roles: ['super_admin', 'admin', 'receptionist'] },
   { key: 'reports', label: 'Reports', icon: BarChart3, roles: ['super_admin', 'admin'] },
   { key: 'messages', label: 'Messages', icon: MessageSquare, roles: ['super_admin', 'admin'] },
   { key: 'users', label: 'User Management', icon: ShieldCheck, roles: ['super_admin'] },

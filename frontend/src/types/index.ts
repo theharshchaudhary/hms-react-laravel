@@ -159,6 +159,54 @@ export interface Facility {
   icon: string;
 }
 
+export type MedicineCategory = 'Tablet' | 'Capsule' | 'Syrup' | 'Injection' | 'Ointment' | 'Drops' | 'Other';
+
+export interface Medicine {
+  id: string;
+  name: string;
+  genericName?: string;
+  category: MedicineCategory;
+  manufacturer?: string;
+  unit: string;
+  unitPrice: number;
+  stockQuantity: number;
+  reorderLevel: number;
+  batchNumber?: string;
+  expiryDate?: string | null;
+  lowStock: boolean;
+  expiringSoon: boolean;
+}
+
+export interface MedicineSaleItem {
+  medicineId: string;
+  name: string;
+  unit: string;
+  unitPrice: number;
+  quantity: number;
+  total: number;
+}
+
+export type MedicineSaleStatus = 'Paid' | 'Pending' | 'Partial';
+
+export interface MedicineSale {
+  id: string;
+  saleNumber: string;
+  patientId: string | null;
+  customerName: string;
+  customerPhone?: string;
+  servedBy?: string | null;
+  date: string;
+  items: MedicineSaleItem[];
+  subtotal: number;
+  discount: number;
+  tax: number;
+  total: number;
+  paidAmount: number;
+  paymentMethod?: PaymentMethod;
+  status: MedicineSaleStatus;
+  notes?: string;
+}
+
 export interface ContactMessage {
   id: string;
   name: string;

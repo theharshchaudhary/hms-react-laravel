@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import {
   HeartPulse, LayoutDashboard, CalendarDays, Pill, FileText, Receipt, UserCircle,
-  Menu, X, LogOut,
+  Menu, X, LogOut, ShoppingBag,
 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { navigate } from '@/router/Router';
@@ -11,6 +11,7 @@ import { PortalAppointments } from '@/pages/portal/PortalAppointments';
 import { PortalPrescriptions } from '@/pages/portal/PortalPrescriptions';
 import { PortalRecords } from '@/pages/portal/PortalRecords';
 import { PortalBilling } from '@/pages/portal/PortalBilling';
+import { PortalPharmacy } from '@/pages/portal/PortalPharmacy';
 import { PortalProfile } from '@/pages/portal/PortalProfile';
 
 const NAV = [
@@ -19,6 +20,7 @@ const NAV = [
   { key: 'prescriptions', label: 'Prescriptions', icon: Pill },
   { key: 'records', label: 'Medical Records', icon: FileText },
   { key: 'billing', label: 'Billing', icon: Receipt },
+  { key: 'pharmacy', label: 'Pharmacy Purchases', icon: ShoppingBag },
   { key: 'profile', label: 'My Profile', icon: UserCircle },
 ] as const;
 
@@ -28,6 +30,7 @@ const TITLES: Record<string, string> = {
   prescriptions: 'My Prescriptions',
   records: 'Medical Records',
   billing: 'Billing & Invoices',
+  pharmacy: 'Pharmacy Purchases',
   profile: 'My Profile',
 };
 
@@ -52,6 +55,7 @@ export function PortalPage({ activeKey }: { activeKey: string }) {
       case 'prescriptions': return <PortalPrescriptions />;
       case 'records': return <PortalRecords />;
       case 'billing': return <PortalBilling />;
+      case 'pharmacy': return <PortalPharmacy />;
       case 'profile': return <PortalProfile />;
       default: return <PortalOverview onNavigate={go} />;
     }

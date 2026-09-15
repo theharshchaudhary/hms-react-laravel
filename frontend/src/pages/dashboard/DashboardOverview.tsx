@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react';
-import { Users, CalendarDays, Stethoscope, Receipt, Activity, Clock, TrendingUp, AlertCircle, RefreshCw } from 'lucide-react';
+import { Users, CalendarDays, Stethoscope, Receipt, Activity, Clock, TrendingUp, AlertCircle, RefreshCw, PackageX } from 'lucide-react';
 import { StatCard } from '@/components/ui/StatCard';
 import { SectionLoader, ErrorState } from '@/components/ui/SectionLoader';
 import { BarChart, DonutChart, LineChart } from '@/components/dashboard/Chart';
 import { AppointmentStatusBadge } from '@/components/ui/StatusBadge';
 import { Avatar } from '@/components/ui/Avatar';
 import { useAuth } from '@/context/AuthContext';
+import { navigate } from '@/router/Router';
 import { analyticsApi, type DashboardOverview as Overview } from '@/services/api';
 
 const STATUS_COLORS: Record<string, string> = {
@@ -140,6 +141,16 @@ export function DashboardOverview() {
               </div>
               <span className="text-lg font-bold text-gray-900">{data.totalInvoices}</span>
             </div>
+            {!data.scopedToDoctor && (
+              <button onClick={() => navigate('/dashboard/pharmacy')}
+                className="flex w-full items-center justify-between rounded-lg bg-gray-50 px-4 py-3 text-left transition-colors hover:bg-gray-100">
+                <div className="flex items-center gap-3">
+                  <div className={`flex h-9 w-9 items-center justify-center rounded-lg ${data.lowStockMedicines ? 'bg-error-50 text-error-600' : 'bg-success-50 text-success-600'}`}><PackageX className="h-5 w-5" /></div>
+                  <span className="text-sm text-gray-600">Low Stock Medicines</span>
+                </div>
+                <span className="text-lg font-bold text-gray-900">{data.lowStockMedicines}</span>
+              </button>
+            )}
           </div>
         </div>
       </div>
