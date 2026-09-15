@@ -18,10 +18,10 @@ that exact API contract, so the two line up field-for-field (the API speaks
 | Role | How it's created | Where it lands | Can do |
 | ---- | ---------------- | -------------- | ------ |
 | `super_admin` | seeded / another super admin | staff dashboard | everything, incl. **User Management** (create/edit/delete staff, assign roles, link doctor profiles) |
-| `admin` | super admin | staff dashboard | all clinical + billing + config + the **Messages** inbox, **not** user management |
-| `doctor` | super admin (linked to a **doctor profile**) | staff dashboard | **only their own** patients, appointments, prescriptions, records, queue |
-| `receptionist` | super admin | staff dashboard | patients, appointments, queue, billing (cannot delete patients) |
-| `patient` | **public `/register`** (only role available there) | patient portal | book / reschedule / cancel own appointments, view prescriptions + request refills, view records, view + download invoices (PDF), edit profile |
+| `admin` | super admin | staff dashboard | all clinical + billing + pharmacy (incl. inventory) + config + the **Messages** inbox, **not** user management |
+| `doctor` | super admin (linked to a **doctor profile**) | staff dashboard | **only their own** patients, appointments, prescriptions, records, queue (no pharmacy) |
+| `receptionist` | super admin | staff dashboard | patients, appointments, queue, billing, **pharmacy counter** (sell + print invoices; inventory read-only; cannot delete patients) |
+| `patient` | **public `/register`** (only role available there) | patient portal | book / reschedule / cancel own appointments, view prescriptions + request refills, view records, view + download invoices and pharmacy bills (PDF), edit profile |
 
 A `doctor` login is tied to a specific doctor profile (`users.doctor_id`), so every
 staff list and the dashboard are automatically scoped to that doctor's own work.
@@ -44,9 +44,20 @@ created exclusively by a super admin via the dashboard's *User Management* page.
 - **Workflow links** — checking in an appointment creates a queue token; marking
   a consult *Completed* prompts an invoice and stamps the patient's last visit;
   department doctor-counts and bed-occupancy are derived from real data.
+- **Pharmacy (counter billing)** — a point-of-sale screen for the counter:
+  search the medicine catalogue, build a cart (quantities capped by stock), sell to
+  a walk-in customer or a registered patient (one click loads their active
+  prescriptions into the cart), apply discount / tax, take cash / card / insurance /
+  online payment with change or balance-due handling, then **print** a receipt or
+  download an A4 **PDF invoice**. Prices and totals are computed server-side, stock
+  is decremented inside a locked transaction (no overselling), and part-paid bills
+  can be settled later from *Sales History*. Admins manage inventory (add / edit /
+  restock / delete, low-stock and expiring-soon filters); low stock also shows on
+  the dashboard, and pharmacy takings count toward revenue.
 - **Patient portal** — a separate logged-in area scoped to the patient's own
   records: appointments (with double-booking / on-leave guards), prescriptions +
-  refill requests, medical records, downloadable invoices, profile & password.
+  refill requests, medical records, downloadable invoices, pharmacy purchases,
+  profile & password.
 - **Analytics** — dashboard overview and reports summary computed live from the
   database (revenue trends, appointment status, weekly load, bed occupancy).
 - **Public site** — landing page pulls live doctors, departments, testimonials,
@@ -149,6 +160,10 @@ Base URL: `http://localhost:8001/api`
 | GET | `/dashboard/overview` | any staff (auto-scoped for doctors) |
 | POST/PUT | `/prescriptions` · POST `/records` | super_admin, admin, doctor |
 | POST/PUT | `/invoices` | super_admin, admin, receptionist |
+| GET | `/medicines` (`?search=&category=&lowStock=1&expiringSoon=1`) · `/medicine-sales` (`?search=&status=&patientId=`) · `/medicine-sales/{id}/pdf` | super_admin, admin, receptionist |
+| POST | `/medicine-sales` — `{ patientId? \| customerName, customerPhone?, items: [{ medicineId, quantity }], discount?, tax?, paidAmount?, paymentMethod?, notes? }` | super_admin, admin, receptionist |
+| PUT | `/medicine-sales/{id}` — record a payment (`paidAmount`, `paymentMethod`, `notes`) | super_admin, admin, receptionist |
+| POST/PUT/DELETE | `/medicines` | super_admin, admin |
 | POST/PUT/DELETE | `/doctors`, `/departments` · GET `/reports/summary` · `/reports/pdf?type=…` · `/messages` (index/update/destroy) | super_admin, admin |
 | GET/POST/PUT/DELETE | `/users` | **super_admin only** |
 
@@ -160,6 +175,7 @@ Base URL: `http://localhost:8001/api`
 | GET | `/portal/prescriptions` · POST `/portal/prescriptions/{id}/refill` |
 | GET | `/portal/records` |
 | GET | `/portal/invoices` · `/portal/invoices/{id}/pdf` |
+| GET | `/portal/medicine-sales` · `/portal/medicine-sales/{id}/pdf` |
 
 ---
 
@@ -174,13 +190,15 @@ backend/
   app/Models/                 Eloquent models (User ↔ Patient link)
   database/migrations/        schema
   database/seeders/           DatabaseSeeder — demo data (5 roles)
-  resources/views/pdf/        invoice.blade.php (dompdf)
+  resources/views/pdf/        invoice, medicine-sale, report blades (dompdf)
   routes/api.php              all routes
 frontend/
-  src/services/api.ts         typed API client (authApi, userApi, portalApi, …)
+  src/services/api.ts         typed API client (authApi, userApi, portalApi, medicineSaleApi, …)
   src/context/AuthContext.tsx auth state, token bootstrap, role-based landing
   src/pages/DashboardPage     staff back-office shell + role gating
   src/pages/PortalPage        patient portal shell
   src/pages/portal/           patient portal modules
-  src/pages/dashboard/UsersPage.tsx   super-admin staff management
+  src/pages/dashboard/UsersPage.tsx     super-admin staff management
+  src/pages/dashboard/PharmacyPage.tsx  counter POS, sales history, inventory
+  src/components/pharmacy/SaleReceipt.tsx  printable receipt (printed via src/lib/print.ts)
 ```
