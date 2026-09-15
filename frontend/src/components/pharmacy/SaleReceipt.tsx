@@ -1,5 +1,6 @@
 import { forwardRef } from 'react';
 import { HeartPulse } from 'lucide-react';
+import { useHospitalProfile } from '@/lib/hospital';
 import type { MedicineSale } from '@/types';
 
 const money = (n: number) => `$${n.toFixed(2)}`;
@@ -15,6 +16,7 @@ interface SaleReceiptProps {
 }
 
 export const SaleReceipt = forwardRef<HTMLDivElement, SaleReceiptProps>(({ sale, change = 0 }, ref) => {
+  const seller = useHospitalProfile();
   const balance = Math.max(0, sale.total - sale.paidAmount);
 
   return (
@@ -25,8 +27,9 @@ export const SaleReceipt = forwardRef<HTMLDivElement, SaleReceiptProps>(({ sale,
           <div className="mx-auto flex h-11 w-11 items-center justify-center rounded-xl bg-white/20">
             <HeartPulse className="h-6 w-6" />
           </div>
-          <p className="mt-2 font-display text-lg font-bold tracking-wide">MediCore Pharmacy</p>
-          <p className="text-xs text-success-100">123 Healthcare Blvd, Springfield · +1 (555) 123-4567</p>
+          <p className="mt-2 font-display text-lg font-bold tracking-wide">{seller?.pharmacyName ?? 'MediCore Pharmacy'}</p>
+          {seller && <p className="text-xs text-success-100">{seller.address} · {seller.phone}</p>}
+          {seller?.taxNumber && <p className="mt-1 text-xs font-semibold tracking-wide">{seller.taxLabel}: {seller.taxNumber}</p>}
         </div>
 
         <div className="px-6 py-5">

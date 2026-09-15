@@ -28,11 +28,16 @@
   .partial { background: #dbeafe; color: #1d4ed8; }
   .footer { clear: both; margin-top: 60px; text-align: center; color: #9ca3af; font-size: 10px; }
   .footer strong { color: #6b7280; }
+  .brand small.tax { color: #1f2937; font-weight: bold; margin-top: 3px; }
 </style>
 </head>
 <body>
   <div class="header">
-    <div class="brand">MediCore Pharmacy<small>123 Healthcare Blvd, Springfield, IL 62704 · +1 (555) 123-4567</small></div>
+    <div class="brand">{{ config('hospital.pharmacy_name') }}<small>{{ config('hospital.address') }} · {{ config('hospital.phone') }}</small>
+      @if (config('hospital.tax_number'))
+        <small class="tax">{{ config('hospital.tax_label') }}: {{ config('hospital.tax_number') }}</small>
+      @endif
+    </div>
     <div>
       <h1>MEDICINE INVOICE</h1>
       <div class="right muted">{{ $sale->sale_number }}</div>

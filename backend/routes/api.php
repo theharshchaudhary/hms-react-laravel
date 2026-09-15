@@ -38,6 +38,7 @@ Route::prefix('public')->group(function () {
     Route::get('testimonials', [PublicController::class, 'testimonials']);
     Route::get('facilities', [PublicController::class, 'facilities']);
     Route::get('stats', [PublicController::class, 'stats']);
+    Route::get('hospital', [PublicController::class, 'hospital']);
 });
 
 /*

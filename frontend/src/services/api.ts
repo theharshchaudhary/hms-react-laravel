@@ -267,7 +267,17 @@ export interface DoctorSlots {
   booked: string[];
 }
 
+export interface HospitalProfile {
+  name: string;
+  pharmacyName: string;
+  address: string;
+  phone: string;
+  taxLabel: string;
+  taxNumber: string | null;
+}
+
 export const publicApi = {
+  hospital: () => request<HospitalProfile>('/public/hospital'),
   doctors: () => request<Doctor[]>('/public/doctors'),
   doctorSlots: (doctorId: string, date: string) =>
     request<DoctorSlots>(`/public/doctors/${doctorId}/slots?date=${date}`),

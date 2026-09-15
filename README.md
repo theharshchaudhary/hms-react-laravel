@@ -103,6 +103,12 @@ php artisan serve --host=127.0.0.1 --port=8001
 ```
 
 API is now at `http://localhost:8001/api`.
+
+> **Invoices:** set your seller details in `backend/.env` —
+> `HOSPITAL_NAME`, `HOSPITAL_PHARMACY_NAME`, `HOSPITAL_ADDRESS`, `HOSPITAL_PHONE`,
+> and your registered **PAN/VAT number** in `HOSPITAL_TAX_NUMBER`
+> (label via `HOSPITAL_TAX_LABEL`, e.g. `PAN No.` or `VAT No.`). They are printed on
+> every hospital invoice PDF, pharmacy invoice PDF and printed pharmacy receipt.
 (`composer setup` runs install + migrate + seed in one go;
 `composer serve` starts the server on 8001; `composer fresh` re-seeds.)
 
@@ -146,6 +152,7 @@ Base URL: `http://localhost:8001/api`
 | POST | `/contact` | landing-page contact form |
 | GET | `/public/{doctors,departments,testimonials,facilities,stats}` | landing page data |
 | GET | `/public/doctors/{id}/slots?date=YYYY-MM-DD` | open time slots for the booking wizard |
+| GET | `/public/hospital` | seller details (name, address, phone, PAN/VAT number) printed on invoices |
 
 ### Shared (any authenticated user)
 `POST /auth/logout` · `GET /auth/user` · `PUT /auth/profile` · `PUT /auth/password`

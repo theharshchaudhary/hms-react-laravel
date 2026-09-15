@@ -69,6 +69,18 @@ class PublicController extends Controller
         return FacilityResource::collection(Facility::orderBy('id')->get());
     }
 
+    public function hospital()
+    {
+        return response()->json([
+            'name' => config('hospital.name'),
+            'pharmacyName' => config('hospital.pharmacy_name'),
+            'address' => config('hospital.address'),
+            'phone' => config('hospital.phone'),
+            'taxLabel' => config('hospital.tax_label'),
+            'taxNumber' => config('hospital.tax_number'),
+        ]);
+    }
+
     public function stats()
     {
         $totalBeds = (int) Department::sum('total_beds');
